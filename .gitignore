@@ -127,3 +127,8 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Dependencies for Agregore Mobile
+chromium/
+depot_tools/
+bromite/
