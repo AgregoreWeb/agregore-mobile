@@ -4,7 +4,6 @@
 This script will trigger a new build of the browser
 '''
 
-import os
 import argparse
 import subprocess
 
@@ -18,11 +17,10 @@ chromium = args["chromium"]
 build_name = args["build_name"]
 build_path = args["build_path"]
 depot_tools = args["depot_tools"]
-
-autoninja = os.path.join(depot_tools, 'autoninja')
+env = args["env"]
 
 print(f"Building {build_name}")
-to_run = f'{autoninja} -C {build_path} chrome_public_apk'
-subprocess.run(to_run, cwd=chromium, shell=True, check=True)
+to_run = f'autoninja -C {build_path} chrome_public_apk'
+subprocess.run(to_run, cwd=chromium, shell=True, check=True, env=env)
 
 print("Done!")

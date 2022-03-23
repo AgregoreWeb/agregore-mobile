@@ -20,6 +20,7 @@ chromium = args["chromium"]
 bromite = args["bromite"]
 build_name = args["build_name"]
 build_path = args["build_path"]
+env = args["env"]
 
 bromite_build_folder = os.path.join(bromite, 'build')
 
@@ -32,7 +33,7 @@ with open(release_file_name, 'r', encoding='utf8') as release_file:
     checkout_value = release_file.read()
     print(f"Checking out: {checkout_value}")
     to_exec = f"git checkout {checkout_value}"
-    subprocess.run(to_exec, cwd=chromium, shell=True, check=True)
+    subprocess.run(to_exec, cwd=chromium, shell=True, check=True, env=env)
 
 # Copy build/bromite.gn_args to out/Default/args.gn (configurable?) (check if exists?)
 print("Copy bromite gn args")

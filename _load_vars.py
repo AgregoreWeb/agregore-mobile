@@ -9,8 +9,10 @@ import argparse
 
 CURRENT_FOLDER = os.path.dirname(__file__)
 DEFAULT_BROMITE = os.path.abspath(os.path.join(CURRENT_FOLDER, './bromite'))
-DEFAULT_CHROMIUM = os.path.abspath(os.path.join(CURRENT_FOLDER, './chromium/src'))
-DEFAULT_DEPOT_TOOLS = os.path.abspath(os.path.join(CURRENT_FOLDER, './depot_tools'))
+DEFAULT_CHROMIUM = os.path.abspath(
+    os.path.join(CURRENT_FOLDER, './chromium/src'))
+DEFAULT_DEPOT_TOOLS = os.path.abspath(
+    os.path.join(CURRENT_FOLDER, './depot_tools'))
 
 
 def load_vars(existing_parser=None):
@@ -59,11 +61,16 @@ def load_vars(existing_parser=None):
     bromite = args.bromite
     bromite_build_folder = os.path.abspath(os.path.join(bromite, 'build'))
 
+    depot_tools = os.path.abspath(args.depot_tools)
+    env = os.environ.copy()
+    env["PATH"] = env["PATH"] + ":" + depot_tools
+
     final_args = dict(arg_dict, **{
         "chromium_root": chromium_root,
         "bromite_build_folder": bromite_build_folder,
         "build_path": build_path,
-        "root": CURRENT_FOLDER
+        "root": CURRENT_FOLDER,
+        "env": env
     })
 
     return final_args

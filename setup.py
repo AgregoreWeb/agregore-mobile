@@ -43,6 +43,7 @@ build_name = args["build_name"]
 build_path = args["build_path"]
 depot_tools = args["depot_tools"]
 root = args["root"]
+env = args["env"]
 
 build = args["build"]
 depot_tools_repo = args["depot_tools_repo"]
@@ -61,19 +62,17 @@ else:
 if not os.path.exists(chromium_root):
     print("Fetching chromium source")
     os.makedirs(chromium_root)
-    fetch = os.path.join(depot_tools, 'fetch')
-    subprocess.run(f'{fetch} --nohooks android',
-                   cwd=chromium_root, shell=True, check=True)
+    subprocess.run('fetch --nohooks android',
+                   cwd=chromium_root, shell=True, check=True, env=env)
     if build:
         print('Installing build dependencies')
         install_deps = os.path.join(
             chromium, "build/install-build-deps-android.sh")
         subprocess.run(f'{install_deps}', cwd=chromium_root,
-                       shell=True, check=True)
+                       shell=True, check=True, env=env)
         print('Running hooks for third party libraries')
-        gclient = os.path.join(depot_tools, 'gclient')
-        subprocess.run(f'{gclient} runhooks',
-                       cwd=chromium_root, shell=True, check=True)
+        subprocess.run('gclient runhooks',
+                       cwd=chromium_root, shell=True, check=True, env=env)
     else:
         print("Skipping build dependencies, enable with --build")
 else:
@@ -81,10 +80,9 @@ else:
 # Set up ./chromium/src/out/Default if it doesn't exist
 if build and not os.path.exists(os.path.join(chromium, build_path)):
     print('Preparing chromium output directory')
-    gn = os.path.join(depot_tools, 'gn')
     subprocess.run(
-        f'{gn} args {build_path}',
-        input=GN_ARGS, cwd=chromium_root, shell=True, check=True)
+        f'gn args {build_path}',
+        input=GN_ARGS, cwd=chromium_root, shell=True, check=True, env=env)
 else:
     print("Skipping chromium output directory, exists or not building")
 # Set up ./bromite if it doesn't exist
