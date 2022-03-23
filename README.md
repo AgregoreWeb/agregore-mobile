@@ -29,3 +29,15 @@ How it works:
 	- You can specify `--n` for the number of commits to include in the patch if you want something other than the latest one.
 	- Generally, if you did several commits as part of your change, you'll want to squash them with `git rebase -i HEAD~<n>` where `n` is the number of commits you want to squash.
 	- Then you'll want to commit the patches and use `patch_with_agregore.py` to apply them on the build server
+
+### Flow for building with the build server
+
+- Checkout a new branch to start
+- Make changes inside chromium/src and commit
+- Run `generate_patch.py` to generate a pach
+- Commit your changes to your branch
+- Push them to github
+- Checkout the branch on the build server `ssh root@build.mauve.moe`
+- Apply the patches using `patch_with_agregore.py`
+- Run `build.py`
+
