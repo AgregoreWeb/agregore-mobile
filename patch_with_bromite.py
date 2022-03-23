@@ -25,7 +25,6 @@ env = args["env"]
 bromite_build_folder = os.path.join(bromite, 'build')
 
 # Checkout version from RELEASE (or RELEASE_COMMIT?)
-# TODO: git reset --hard?
 print("Checkout chromium version")
 release_file_name = os.path.join(bromite_build_folder, 'RELEASE_COMMIT')
 
@@ -36,10 +35,13 @@ with open(release_file_name, 'r', encoding='utf8') as release_file:
     subprocess.run(to_exec, cwd=chromium, shell=True, check=True, env=env)
 
 # Copy build/bromite.gn_args to out/Default/args.gn (configurable?) (check if exists?)
-print("Copy bromite gn args")
-source_gn_args = os.path.join(bromite_build_folder, 'bromite.gn_args')
 destination_gn_args = os.path.join(chromium, build_path, 'args.gn')
-shutil.copyfile(source_gn_args, destination_gn_args)
+if os.path.exists(destination_gn_args):
+    print("Copy bromite gn args")
+    source_gn_args = os.path.join(bromite_build_folder, 'bromite.gn_args')
+    shutil.copyfile(source_gn_args, destination_gn_args)
+else:
+    print("Skipping args.gn since build folder was not initialized")
 
 # Get `bromite/build/bromite_patches_list.txt` and read each line
 print("Applying patches")
