@@ -17,7 +17,8 @@ parser = argparse.ArgumentParser(
 
 parser.add_argument(
     '--build',
-    action=argparse.BooleanOptionalAction,
+    action="store_true",
+    default=False,
     help="Whether to prepare the source tree for a build"
 )
 
