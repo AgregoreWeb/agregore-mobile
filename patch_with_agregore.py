@@ -8,6 +8,7 @@ It wll also configure the output directory with the specified args
 import os
 import argparse
 import subprocess
+from subprocess import PIPE
 from _load_vars import load_vars
 
 # Parse args
@@ -33,7 +34,7 @@ for patch_name in patch_list:
         f"git am {patch_path}",
         cwd=chromium,
         shell=True, check=False,
-        capture_output=True, encoding="utf8"
+        stderr=PIPE, encoding="utf8"
     )
     if result.returncode != 0:
         if 'patch does not apply' not in result.stderr:
