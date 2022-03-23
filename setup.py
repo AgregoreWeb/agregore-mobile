@@ -93,4 +93,12 @@ if not os.path.exists(bromite):
 else:
     print("Skipping bromite directory, already exists")
 
-print("Done!")
+print("Running Bromite Patch Script")
+bromite_patch_script = os.path.join(root, 'patch_with_bromite.py')
+subprocess.run(bromite_patch_script, cwd=root, shell=True, check=True)
+
+print("Running Agregore Patch Script")
+agregore_patch_script = os.path.join(root, 'patch_with_agregore.py')
+subprocess.run(agregore_patch_script, cwd=root, shell=True, check=True)
+
+print("Really Done!")

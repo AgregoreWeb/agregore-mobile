@@ -17,7 +17,7 @@ How it works:
 	- A `Bromite` source tree is set up in `./bromite` (this doesn't take much space)
 - Run `./patch_with_bromite.py` to checkout the correct version of Chromium and to apply the bromite patches to it
   - Run this whenever bromite gets updated
-- TODO: Run `./apply_agregore_patches.py` to apply Agregore patches to the Chromium tree
+- TODO: Run `./patch_with_agregore.py` to apply Agregore patches to the Chromium tree
 - Run `./prebuild.py` to sync dependencies needed to perform a build.
 	- This can be skipped if you're just adding changes, dependenices can take an extra 30 GB of space
 - Run `./build.py` to trigger a new build of the browser
