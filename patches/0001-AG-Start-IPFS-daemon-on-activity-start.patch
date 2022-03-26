@@ -1,10 +1,9 @@
-From 1c536833a130e540c9226a4b2e24334ec29c7002 Mon Sep 17 00:00:00 2001
+From a49799e080d5ad8c68872118cf423b7d38b38a61 Mon Sep 17 00:00:00 2001
 From: mauve <ranger@mauve.moe>
 Date: Thu, 24 Mar 2022 18:30:30 -0400
 Subject: [PATCH] AG Start IPFS daemon on activity start
 
 ---
- chrome/android/chrome_java_resources.gni      |   1 +
  chrome/android/chrome_java_sources.gni        |   2 +
  chrome/android/java/AndroidManifest.xml       |   8 ++
  .../java/AndroidManifest_trichrome_chrome.xml |   2 +-
@@ -12,20 +11,10 @@ Subject: [PATCH] AG Start IPFS daemon on activity start
  .../mauve/agregore/mobile/IPFSService.java    | 127 ++++++++++++++++++
  .../mauve/agregore/mobile/IPFSStarter.java    |  94 +++++++++++++
  .../chrome/browser/app/ChromeActivity.java    |  12 ++
- 8 files changed, 246 insertions(+), 1 deletion(-)
+ 7 files changed, 245 insertions(+), 1 deletion(-)
  create mode 100644 chrome/android/java/src/moe/mauve/agregore/mobile/IPFSService.java
  create mode 100644 chrome/android/java/src/moe/mauve/agregore/mobile/IPFSStarter.java
 
-diff --git a/chrome/android/chrome_java_resources.gni b/chrome/android/chrome_java_resources.gni
-index abb2026cc237b..bc0ff841c7ced 100644
---- a/chrome/android/chrome_java_resources.gni
-+++ b/chrome/android/chrome_java_resources.gni
-@@ -762,4 +762,5 @@ chrome_java_resources = [
-   "java/res/xml/tracing_preferences.xml",
-   "java/res/xml/useragent_preferences.xml",
-   "java/res/layout/custom_useragent_preferences.xml",
-+  "java/res/raw/agregore_ipfs_daemon",
- ]
 diff --git a/chrome/android/chrome_java_sources.gni b/chrome/android/chrome_java_sources.gni
 index 02df4dd5b9121..0c62bb8104203 100644
 --- a/chrome/android/chrome_java_sources.gni
