@@ -1,4 +1,4 @@
-From 26a08c900f82345eecf9985c28d027b8db68e229 Mon Sep 17 00:00:00 2001
+From 53e31a68753f9b36c0c00273f626de9919ff7450 Mon Sep 17 00:00:00 2001
 From: mauve <ranger@mauve.moe>
 Date: Thu, 24 Mar 2022 18:30:30 -0400
 Subject: [PATCH] AG Start IPFS daemon on activity start
@@ -70,7 +70,7 @@ index 45e0ea84a3088..2d2ea32b4b707 100644
  </resources>
 diff --git a/chrome/android/java/src/moe/mauve/agregore/mobile/IPFSService.java b/chrome/android/java/src/moe/mauve/agregore/mobile/IPFSService.java
 new file mode 100644
-index 0000000000000..ac2edf2537a44
+index 0000000000000..f328282dfad0f
 --- /dev/null
 +++ b/chrome/android/java/src/moe/mauve/agregore/mobile/IPFSService.java
 @@ -0,0 +1,127 @@
@@ -144,7 +144,7 @@ index 0000000000000..ac2edf2537a44
 +		try {
 +			String cwd = getFilesDir().getPath() + "/";
 +			String ipfsDataDirectory = cwd + "/ipfs/";
-+			String binaryDirectory = appContext.getApplicationInfo().nativeLibraryDir;
++			String binaryDirectory = getApplicationInfo().nativeLibraryDir;
 +
 +			String filePath = binaryDirectory + "/" + COMMAND_NAME;
 +
