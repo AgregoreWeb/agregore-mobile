@@ -1,13 +1,13 @@
-From a48bbd451d208c454a8906836d7560966a379df4 Mon Sep 17 00:00:00 2001
+From 3b2c367698b718e08d1ac40cf666042a3b5740d5 Mon Sep 17 00:00:00 2001
 From: mauve <ranger@mauve.moe>
 Date: Wed, 30 Mar 2022 16:41:57 -0400
 Subject: [PATCH 1/1] Add Agregore Protocol Handler
 
 ---
  chrome/browser/agregore_handler.cc            | 76 +++++++++++++++++++
- chrome/browser/agregore_handler.h             | 26 +++++++
+ chrome/browser/agregore_handler.h             | 27 +++++++
  .../browser/chrome_content_browser_client.cc  |  5 ++
- 3 files changed, 107 insertions(+)
+ 3 files changed, 108 insertions(+)
  create mode 100644 chrome/browser/agregore_handler.cc
  create mode 100644 chrome/browser/agregore_handler.h
 
@@ -95,10 +95,10 @@ index 0000000000000..3d0a3705a5f71
 +}
 diff --git a/chrome/browser/agregore_handler.h b/chrome/browser/agregore_handler.h
 new file mode 100644
-index 0000000000000..7588550f55179
+index 0000000000000..f6e5ad697da9d
 --- /dev/null
 +++ b/chrome/browser/agregore_handler.h
-@@ -0,0 +1,26 @@
+@@ -0,0 +1,27 @@
 +// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style license that can be
 +// found in the LICENSE file.
@@ -115,6 +115,7 @@ index 0000000000000..7588550f55179
 +
 +// Rewrites chrome://about -> chrome://chrome-urls and chrome://sync ->
 +// chrome://sync-internals.  Used with content::BrowserURLHandler.
++// Hello world
 +bool HandleAgregoreRewrite(
 +    GURL* url,
 +    content::BrowserContext* browser_context);
@@ -149,5 +150,5 @@ index bcdb4eef39a85..99d6904d21ad2 100644
    // Handler to rewrite chrome://newtab on Android.
    handler->AddHandlerPair(&chrome::android::HandleAndroidNativePageURL,
 -- 
-2.32.0
+2.25.1
 
