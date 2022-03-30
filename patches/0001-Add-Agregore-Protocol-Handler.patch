@@ -1,0 +1,153 @@
+From a48bbd451d208c454a8906836d7560966a379df4 Mon Sep 17 00:00:00 2001
+From: mauve <ranger@mauve.moe>
+Date: Wed, 30 Mar 2022 16:41:57 -0400
+Subject: [PATCH 1/1] Add Agregore Protocol Handler
+
+---
+ chrome/browser/agregore_handler.cc            | 76 +++++++++++++++++++
+ chrome/browser/agregore_handler.h             | 26 +++++++
+ .../browser/chrome_content_browser_client.cc  |  5 ++
+ 3 files changed, 107 insertions(+)
+ create mode 100644 chrome/browser/agregore_handler.cc
+ create mode 100644 chrome/browser/agregore_handler.h
+
+diff --git a/chrome/browser/agregore_handler.cc b/chrome/browser/agregore_handler.cc
+new file mode 100644
+index 0000000000000..3d0a3705a5f71
+--- /dev/null
++++ b/chrome/browser/agregore_handler.cc
+@@ -0,0 +1,76 @@
++// Copyright (c) 2012 The Chromium Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++#include "chrome/browser/agregore_handler.h"
++
++#include <string>
++
++#include "base/bind.h"
++#include "base/check.h"
++#include "base/location.h"
++#include "base/strings/string_util.h"
++#include "base/task/single_thread_task_runner.h"
++#include "base/threading/thread_task_runner_handle.h"
++#include "chrome/browser/lifetime/application_lifetime.h"
++#include "chrome/browser/profiles/profile.h"
++#include "chrome/browser/ui/browser_dialogs.h"
++#include "chrome/common/chrome_switches.h"
++#include "chrome/common/url_constants.h"
++#include "content/public/common/content_features.h"
++#include "extensions/buildflags/buildflags.h"
++
++bool HandleAgregoreRewrite(
++    GURL* url,
++    content::BrowserContext* browser_context) {
++  // Check that about: URLs are either
++  // 1) fixed up to chrome: (by url_formatter::FixupURL applied to
++  //    browser-initiated navigations)
++  // or
++  // 2) blocked (by content::RenderProcessHostImpl::FilterURL applied to
++  //    renderer-initiated navigations)
++  DCHECK(url->IsAboutBlank() || url->IsAboutSrcdoc() ||
++         !url->SchemeIs(url::kAboutScheme));
++
++  // Only handle chrome: URLs.
++  if (!url->SchemeIs(content::kChromeUIScheme))
++    return false;
++
++  std::string host(url->host());
++  if (host == chrome::kChromeUIAboutHost) {
++    // Replace chrome://about with chrome://chrome-urls.
++    host = chrome::kChromeUIChromeURLsHost;
++  } else if (host == chrome::kChromeUISyncHost) {
++    // Replace chrome://sync with chrome://sync-internals (for legacy reasons).
++    host = chrome::kChromeUISyncInternalsHost;
++  }
++
++  if (host != url->host()) {
++    GURL::Replacements replacements;
++    replacements.SetHostStr(host);
++    *url = url->ReplaceComponents(replacements);
++  }
++
++  // Having re-written the URL, make the chrome: handler process it.
++  return false;
++}
++
++// TODO: This might need to be rewritten too
++bool HandleNonNavigationAboutURL(const GURL& url) {
++  const std::string spec(url.spec());
++
++  if (base::LowerCaseEqualsASCII(spec, chrome::kChromeUIRestartURL)) {
++    // Call AttemptRestart after chrome::Navigate() completes to avoid access of
++    // gtk objects after they are destroyed by BrowserWindowGtk::Close().
++    base::ThreadTaskRunnerHandle::Get()->PostTask(
++        FROM_HERE, base::BindOnce(&chrome::AttemptRestart));
++    return true;
++  }
++  if (base::LowerCaseEqualsASCII(spec, chrome::kChromeUIQuitURL)) {
++    base::ThreadTaskRunnerHandle::Get()->PostTask(
++        FROM_HERE, base::BindOnce(&chrome::AttemptExit));
++    return true;
++  }
++
++  return false;
++}
+diff --git a/chrome/browser/agregore_handler.h b/chrome/browser/agregore_handler.h
+new file mode 100644
+index 0000000000000..7588550f55179
+--- /dev/null
++++ b/chrome/browser/agregore_handler.h
+@@ -0,0 +1,26 @@
++// Copyright (c) 2011 The Chromium Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++// TODO: Switch this IFDEF to have AGREGORE in the URL
++#ifndef CHROME_BROWSER_BROWSER_ABOUT_HANDLER_H_
++#define CHROME_BROWSER_BROWSER_ABOUT_HANDLER_H_
++
++class GURL;
++
++namespace content {
++class BrowserContext;
++}
++
++// Rewrites chrome://about -> chrome://chrome-urls and chrome://sync ->
++// chrome://sync-internals.  Used with content::BrowserURLHandler.
++bool HandleAgregoreRewrite(
++    GURL* url,
++    content::BrowserContext* browser_context);
++
++// We have a few magic commands that don't cause navigations, but rather pop up
++// dialogs. This function handles those cases, and returns true if so. In this
++// case, normal tab navigation should be skipped.
++bool HandleNonNavigationAboutURL(const GURL& url);
++
++#endif  // CHROME_BROWSER_BROWSER_ABOUT_HANDLER_H_
+diff --git a/chrome/browser/chrome_content_browser_client.cc b/chrome/browser/chrome_content_browser_client.cc
+index bcdb4eef39a85..99d6904d21ad2 100644
+--- a/chrome/browser/chrome_content_browser_client.cc
++++ b/chrome/browser/chrome_content_browser_client.cc
+@@ -33,6 +33,7 @@
+ #include "chrome/browser/after_startup_task_utils.h"
+ #include "chrome/browser/bluetooth/chrome_bluetooth_delegate_impl_client.h"
+ #include "chrome/browser/browser_about_handler.h"
++#include "chrome/browser/agregore_handler.h"
+ #include "chrome/browser/browser_features.h"
+ #include "chrome/browser/browser_process.h"
+ #include "chrome/browser/captive_portal/captive_portal_service_factory.h"
+@@ -3680,6 +3681,10 @@ void ChromeContentBrowserClient::BrowserURLHandlerCreated(
+   handler->AddHandlerPair(&HandleChromeAboutAndChromeSyncRewrite,
+                           BrowserURLHandler::null_handler());
+ 
++  // Handler to rewrite agregore:// URLs
++  handler>AddHandlerPair(&HandleAgregoreRewrite,
++                          BrowserURLHandler::null_handler();
++
+ #if BUILDFLAG(IS_ANDROID)
+   // Handler to rewrite chrome://newtab on Android.
+   handler->AddHandlerPair(&chrome::android::HandleAndroidNativePageURL,
+-- 
+2.32.0
+
