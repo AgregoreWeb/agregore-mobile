@@ -1,4 +1,4 @@
-From f077a6f17191edc39fcf3c668eb95b25400e0180 Mon Sep 17 00:00:00 2001
+From 9725dff3f5d9333dac4a66d5bb4c3e74ee00f5cf Mon Sep 17 00:00:00 2001
 From: Madrets <emmanuel.elite.46@gmail.com>
 Date: Sun, 3 Apr 2022 12:14:10 -0400
 Subject: [PATCH 1/1] Implements agregore://about
@@ -131,7 +131,7 @@ index f6e5ad697da9d..0000000000000
 -
 -#endif  // CHROME_BROWSER_BROWSER_ABOUT_HANDLER_H_
 diff --git a/chrome/browser/browser_about_handler.cc b/chrome/browser/browser_about_handler.cc
-index 9e534ff1683f1..020961ab2696b 100644
+index 9e534ff1683f1..5b9437e82182d 100644
 --- a/chrome/browser/browser_about_handler.cc
 +++ b/chrome/browser/browser_about_handler.cc
 @@ -32,10 +32,26 @@ bool HandleChromeAboutAndChromeSyncRewrite(
@@ -150,7 +150,7 @@ index 9e534ff1683f1..020961ab2696b 100644
 +
 +  // Handle Agregore URLs
 +  if (scheme == content::kAgregoreUIScheme) {
-+    if (host == chrome::kchromeUIAboutHost) {
++    if (host == chrome::kChromeUIAboutHost) {
 +      GURL::Replacements replacements;
 +      replacements.SetSchemeStr(url::kHttpsScheme);
 +      replacements.SetHostStr(chrome::kAgregoreURLHost);
