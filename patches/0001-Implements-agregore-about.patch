@@ -1,140 +1,24 @@
-From f077a6f17191edc39fcf3c668eb95b25400e0180 Mon Sep 17 00:00:00 2001
-From: Madrets <emmanuel.elite.46@gmail.com>
-Date: Sun, 3 Apr 2022 12:14:10 -0400
+From aedcfc7642223a57333aebf80a35bd9ff29be2ff Mon Sep 17 00:00:00 2001
+From: mauve <ranger@mauve.moe>
+Date: Wed, 30 Mar 2022 16:41:57 -0400
 Subject: [PATCH 1/1] Implements agregore://about
 
 ---
- chrome/browser/agregore_handler.cc      | 76 -------------------------
- chrome/browser/agregore_handler.h       | 27 ---------
- chrome/browser/browser_about_handler.cc | 20 ++++++-
- chrome/common/webui_url_constants.cc    |  1 +
- chrome/common/webui_url_constants.h     |  1 +
- content/public/common/url_constants.cc  |  1 +
- content/public/common/url_constants.h   |  1 +
- 7 files changed, 22 insertions(+), 105 deletions(-)
- delete mode 100644 chrome/browser/agregore_handler.cc
- delete mode 100644 chrome/browser/agregore_handler.h
+ chrome/browser/browser_about_handler.cc       | 19 +++++++++++++++++--
+ .../browser/chrome_content_browser_client.cc  |  1 +
+ chrome/browser/profiles/profile_io_data.cc    |  1 +
+ chrome/common/webui_url_constants.cc          |  1 +
+ chrome/common/webui_url_constants.h           |  1 +
+ content/common/url_schemes.cc                 |  3 +++
+ content/public/common/url_constants.cc        |  1 +
+ content/public/common/url_constants.h         |  1 +
+ 8 files changed, 26 insertions(+), 2 deletions(-)
 
-diff --git a/chrome/browser/agregore_handler.cc b/chrome/browser/agregore_handler.cc
-deleted file mode 100644
-index 3d0a3705a5f71..0000000000000
---- a/chrome/browser/agregore_handler.cc
-+++ /dev/null
-@@ -1,76 +0,0 @@
--// Copyright (c) 2012 The Chromium Authors. All rights reserved.
--// Use of this source code is governed by a BSD-style license that can be
--// found in the LICENSE file.
--
--#include "chrome/browser/agregore_handler.h"
--
--#include <string>
--
--#include "base/bind.h"
--#include "base/check.h"
--#include "base/location.h"
--#include "base/strings/string_util.h"
--#include "base/task/single_thread_task_runner.h"
--#include "base/threading/thread_task_runner_handle.h"
--#include "chrome/browser/lifetime/application_lifetime.h"
--#include "chrome/browser/profiles/profile.h"
--#include "chrome/browser/ui/browser_dialogs.h"
--#include "chrome/common/chrome_switches.h"
--#include "chrome/common/url_constants.h"
--#include "content/public/common/content_features.h"
--#include "extensions/buildflags/buildflags.h"
--
--bool HandleAgregoreRewrite(
--    GURL* url,
--    content::BrowserContext* browser_context) {
--  // Check that about: URLs are either
--  // 1) fixed up to chrome: (by url_formatter::FixupURL applied to
--  //    browser-initiated navigations)
--  // or
--  // 2) blocked (by content::RenderProcessHostImpl::FilterURL applied to
--  //    renderer-initiated navigations)
--  DCHECK(url->IsAboutBlank() || url->IsAboutSrcdoc() ||
--         !url->SchemeIs(url::kAboutScheme));
--
--  // Only handle chrome: URLs.
--  if (!url->SchemeIs(content::kChromeUIScheme))
--    return false;
--
--  std::string host(url->host());
--  if (host == chrome::kChromeUIAboutHost) {
--    // Replace chrome://about with chrome://chrome-urls.
--    host = chrome::kChromeUIChromeURLsHost;
--  } else if (host == chrome::kChromeUISyncHost) {
--    // Replace chrome://sync with chrome://sync-internals (for legacy reasons).
--    host = chrome::kChromeUISyncInternalsHost;
--  }
--
--  if (host != url->host()) {
--    GURL::Replacements replacements;
--    replacements.SetHostStr(host);
--    *url = url->ReplaceComponents(replacements);
--  }
--
--  // Having re-written the URL, make the chrome: handler process it.
--  return false;
--}
--
--// TODO: This might need to be rewritten too
--bool HandleNonNavigationAboutURL(const GURL& url) {
--  const std::string spec(url.spec());
--
--  if (base::LowerCaseEqualsASCII(spec, chrome::kChromeUIRestartURL)) {
--    // Call AttemptRestart after chrome::Navigate() completes to avoid access of
--    // gtk objects after they are destroyed by BrowserWindowGtk::Close().
--    base::ThreadTaskRunnerHandle::Get()->PostTask(
--        FROM_HERE, base::BindOnce(&chrome::AttemptRestart));
--    return true;
--  }
--  if (base::LowerCaseEqualsASCII(spec, chrome::kChromeUIQuitURL)) {
--    base::ThreadTaskRunnerHandle::Get()->PostTask(
--        FROM_HERE, base::BindOnce(&chrome::AttemptExit));
--    return true;
--  }
--
--  return false;
--}
-diff --git a/chrome/browser/agregore_handler.h b/chrome/browser/agregore_handler.h
-deleted file mode 100644
-index f6e5ad697da9d..0000000000000
---- a/chrome/browser/agregore_handler.h
-+++ /dev/null
-@@ -1,27 +0,0 @@
--// Copyright (c) 2011 The Chromium Authors. All rights reserved.
--// Use of this source code is governed by a BSD-style license that can be
--// found in the LICENSE file.
--
--// TODO: Switch this IFDEF to have AGREGORE in the URL
--#ifndef CHROME_BROWSER_BROWSER_ABOUT_HANDLER_H_
--#define CHROME_BROWSER_BROWSER_ABOUT_HANDLER_H_
--
--class GURL;
--
--namespace content {
--class BrowserContext;
--}
--
--// Rewrites chrome://about -> chrome://chrome-urls and chrome://sync ->
--// chrome://sync-internals.  Used with content::BrowserURLHandler.
--// Hello world
--bool HandleAgregoreRewrite(
--    GURL* url,
--    content::BrowserContext* browser_context);
--
--// We have a few magic commands that don't cause navigations, but rather pop up
--// dialogs. This function handles those cases, and returns true if so. In this
--// case, normal tab navigation should be skipped.
--bool HandleNonNavigationAboutURL(const GURL& url);
--
--#endif  // CHROME_BROWSER_BROWSER_ABOUT_HANDLER_H_
 diff --git a/chrome/browser/browser_about_handler.cc b/chrome/browser/browser_about_handler.cc
-index 9e534ff1683f1..020961ab2696b 100644
+index 9e534ff1683f1..db36219ded278 100644
 --- a/chrome/browser/browser_about_handler.cc
 +++ b/chrome/browser/browser_about_handler.cc
-@@ -32,10 +32,26 @@ bool HandleChromeAboutAndChromeSyncRewrite(
+@@ -32,11 +32,26 @@ bool HandleChromeAboutAndChromeSyncRewrite(
    DCHECK(url->IsAboutBlank() || url->IsAboutSrcdoc() ||
           !url->SchemeIs(url::kAboutScheme));
  
@@ -145,12 +29,12 @@ index 9e534ff1683f1..020961ab2696b 100644
 +      url->SchemeIs(content::kAgregoreUIScheme)))
      return false;
  
-+  std::string host(url->host());
+   std::string host(url->host());
 +  std::string scheme(url->scheme());
 +
 +  // Handle Agregore URLs
 +  if (scheme == content::kAgregoreUIScheme) {
-+    if (host == chrome::kchromeUIAboutHost) {
++    if (host == chrome::kChromeUIAboutHost) {
 +      GURL::Replacements replacements;
 +      replacements.SetSchemeStr(url::kHttpsScheme);
 +      replacements.SetHostStr(chrome::kAgregoreURLHost);
@@ -160,9 +44,33 @@ index 9e534ff1683f1..020961ab2696b 100644
 +    return false;
 +  }
 +
-   std::string host(url->host());
    if (host == chrome::kChromeUIAboutHost) {
      // Replace chrome://about with chrome://chrome-urls.
+     host = chrome::kChromeUIChromeURLsHost;
+diff --git a/chrome/browser/chrome_content_browser_client.cc b/chrome/browser/chrome_content_browser_client.cc
+index bcdb4eef39a85..73199b6149c8c 100644
+--- a/chrome/browser/chrome_content_browser_client.cc
++++ b/chrome/browser/chrome_content_browser_client.cc
+@@ -33,6 +33,7 @@
+ #include "chrome/browser/after_startup_task_utils.h"
+ #include "chrome/browser/bluetooth/chrome_bluetooth_delegate_impl_client.h"
+ #include "chrome/browser/browser_about_handler.h"
++#include "chrome/browser/agregore_handler.h"
+ #include "chrome/browser/browser_features.h"
+ #include "chrome/browser/browser_process.h"
+ #include "chrome/browser/captive_portal/captive_portal_service_factory.h"
+diff --git a/chrome/browser/profiles/profile_io_data.cc b/chrome/browser/profiles/profile_io_data.cc
+index 242c2e3f1fdd1..5eeea967a49ab 100644
+--- a/chrome/browser/profiles/profile_io_data.cc
++++ b/chrome/browser/profiles/profile_io_data.cc
+@@ -37,6 +37,7 @@ bool ProfileIOData::IsHandledProtocol(const std::string& scheme) {
+     extensions::kExtensionScheme,
+ #endif
+     content::kChromeUIScheme,
++    content::kAgregoreUIScheme,
+     content::kChromeUIUntrustedScheme,
+     url::kDataScheme,
+ #if BUILDFLAG(IS_CHROMEOS_ASH)
 diff --git a/chrome/common/webui_url_constants.cc b/chrome/common/webui_url_constants.cc
 index 5d820781128e1..e179f42c1901f 100644
 --- a/chrome/common/webui_url_constants.cc
@@ -187,6 +95,34 @@ index 740b5cf5565c1..91565caf98d8a 100644
  extern const char kChromeUIAboutHost[];
  extern const char kChromeUIAboutURL[];
  extern const char kChromeUIActivateSafetyCheckSettingsURL[];
+diff --git a/content/common/url_schemes.cc b/content/common/url_schemes.cc
+index e59440185a5fe..f1071a52e83bf 100644
+--- a/content/common/url_schemes.cc
++++ b/content/common/url_schemes.cc
+@@ -29,6 +29,7 @@ const char* const kDefaultSavableSchemes[] = {
+   url::kFileSystemScheme,
+   kChromeDevToolsScheme,
+   kChromeUIScheme,
++  kAgregoreUIScheme,
+   url::kDataScheme
+ };
+ 
+@@ -59,6 +60,7 @@ void RegisterContentSchemes(bool should_lock_registry) {
+ 
+   url::AddStandardScheme(kChromeDevToolsScheme, url::SCHEME_WITH_HOST);
+   url::AddStandardScheme(kChromeUIScheme, url::SCHEME_WITH_HOST);
++  url::AddStandardScheme(kAgregoreUIScheme, url::SCHEME_WITH_HOST);
+   url::AddStandardScheme(kChromeUIUntrustedScheme, url::SCHEME_WITH_HOST);
+   url::AddStandardScheme(kGuestScheme, url::SCHEME_WITH_HOST);
+   url::AddStandardScheme(kChromeErrorScheme, url::SCHEME_WITH_HOST);
+@@ -71,6 +73,7 @@ void RegisterContentSchemes(bool should_lock_registry) {
+ 
+   schemes.secure_schemes.push_back(kChromeDevToolsScheme);
+   schemes.secure_schemes.push_back(kChromeUIScheme);
++  schemes.secure_schemes.push_back(kAgregoreUIScheme);
+   schemes.secure_schemes.push_back(kChromeUIUntrustedScheme);
+   schemes.secure_schemes.push_back(kChromeErrorScheme);
+   for (auto& scheme : schemes.secure_schemes)
 diff --git a/content/public/common/url_constants.cc b/content/public/common/url_constants.cc
 index 6122c0beac3d0..95c2489cd1ba0 100644
 --- a/content/public/common/url_constants.cc
