@@ -9,7 +9,7 @@ This codebase is based on [Chromium Android](https://chromium.googlesource.com/c
 
 How it works:
 
-- You'll need 40 or 50 GB of space on your machine since chromium is so huge.
+- You'll need about 70 GB of space on your machine since chromium and it's history is so huge.
 - Run `./setup.py` to do the initial folder setup.
   - The build scripts use Python 3, so you'll need to have it installed on your system.
 	- Chromium build tools are set up in `./depot_tools`
@@ -19,6 +19,8 @@ How it works:
   - Run this whenever bromite gets updated, it will auto-run at setup
 - Run `./apply_agregore_patches.py` to apply Agregore patches to the Chromium tree
   - Run this whenever there are new Agregore patches to apply. It will auto-run at setup
+- Run `./download_ipfs_daemon.py` to download the latest version of the [Agregore IPFS Daemon](https://github.com/AgregoreWeb/agregore-ipfs-daemon/)
+	- Run this whenever a new version is available to update. It will auto-run at setup
 - Run `./prebuild.py` to sync dependencies needed to perform a build.
 	- This can be skipped if you're just adding changes, dependenices can take an extra 30 GB of space
 - Run `./build.py` to trigger a new build of the browser
