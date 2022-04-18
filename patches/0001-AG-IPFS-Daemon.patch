@@ -1,4 +1,4 @@
-From 8ee9e54a4f8428c6e232183541bf5321eac9257b Mon Sep 17 00:00:00 2001
+From 3e31112a8b4b6810e17b38241badc9186569dd07 Mon Sep 17 00:00:00 2001
 From: mauve <ranger@mauve.moe>
 Date: Thu, 24 Mar 2022 18:30:30 -0400
 Subject: [PATCH] AG IPFS Daemon
@@ -11,7 +11,7 @@ Subject: [PATCH] AG IPFS Daemon
  chrome/android/java/AndroidManifest.xml       |  11 +
  .../java/AndroidManifest_trichrome_chrome.xml |   2 +-
  .../values/channel_constants.xml              |   1 +
- .../mauve/agregore/mobile/IPFSService.java    | 131 ++++++++++++
+ .../mauve/agregore/mobile/IPFSService.java    | 137 ++++++++++++
  .../mauve/agregore/mobile/IPFSStarter.java    |  94 ++++++++
  .../chrome/browser/app/ChromeActivity.java    |  12 ++
  third_party/agregore-ipfs-daemon/BUILD.gn     |   9 +
@@ -21,7 +21,7 @@ Subject: [PATCH] AG IPFS Daemon
  .../agregore-ipfs-daemon.info                 |  17 ++
  third_party/agregore-ipfs-daemon/cipd.yaml    |   4 +
  .../arcore-android-sdk-client/proguard.txt    |   2 +-
- 17 files changed, 504 insertions(+), 2 deletions(-)
+ 17 files changed, 510 insertions(+), 2 deletions(-)
  create mode 100644 chrome/android/java/src/moe/mauve/agregore/mobile/IPFSService.java
  create mode 100644 chrome/android/java/src/moe/mauve/agregore/mobile/IPFSStarter.java
  create mode 100644 third_party/agregore-ipfs-daemon/BUILD.gn
@@ -141,10 +141,10 @@ index 45e0ea84a3088..2d2ea32b4b707 100644
  </resources>
 diff --git a/chrome/android/java/src/moe/mauve/agregore/mobile/IPFSService.java b/chrome/android/java/src/moe/mauve/agregore/mobile/IPFSService.java
 new file mode 100644
-index 0000000000000..e3033ba9a14fb
+index 0000000000000..c7573b32b1020
 --- /dev/null
 +++ b/chrome/android/java/src/moe/mauve/agregore/mobile/IPFSService.java
-@@ -0,0 +1,131 @@
+@@ -0,0 +1,137 @@
 +package moe.mauve.agregore.mobile;
 +
 +import android.os.Messenger;
@@ -165,6 +165,7 @@ index 0000000000000..e3033ba9a14fb
 +
 +import java.net.InterfaceAddress;
 +import java.net.NetworkInterface;
++import java.net.SocketException;
 +
 +import moe.mauve.agregore.ipfs.gateway.Gateway;
 +
@@ -221,19 +222,24 @@ index 0000000000000..e3033ba9a14fb
 +
 +	private String getInterfaceAddrs () {
 +		StringBuilder sb = new StringBuilder("");
-+		for (NetworkInterface nif : Collections.list(NetworkInterface.getNetworkInterfaces())) {
-+			try {
-+				for (InterfaceAddress ia : nif.getInterfaceAddresses()) {
-+					String[] parts = ia.toString().split("/", 0);
-+					if (parts.length > 1) {
-+						sb.append(parts[1]);
-+						sb.append("\n");
++		try {
++			for (NetworkInterface nif : Collections.list(NetworkInterface.getNetworkInterfaces())) {
++				try {
++					for (InterfaceAddress ia : nif.getInterfaceAddresses()) {
++						String[] parts = ia.toString().split("/", 0);
++						if (parts.length > 1) {
++							sb.append(parts[1]);
++							sb.append("\n");
++						}
 +					}
++				} catch (Exception e) {
++					Log.e(TAG, "Could not get interface addresses", e);
++					// TODO should log the exception not silently suppress it.
++					continue;
 +				}
-+			} catch (Exception e) {
-+				// TODO should log the exception not silently suppress it.
-+				continue;
 +			}
++		} catch (SocketException e) {
++			Log.e(TAG, "Could not get network interface list", e);
 +		}
 +		return sb.toString();
 +	}
