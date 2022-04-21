@@ -1,0 +1,149 @@
+From aa1c04615d7ca71fdec8664389db1217e8bc50f6 Mon Sep 17 00:00:00 2001
+From: Madrets <emmanuel.elite.46@gmail.com>
+Date: Thu, 21 Apr 2022 10:44:57 -0400
+Subject: [PATCH 1/1] AG Handle IPFS and IPNS URLs
+
+---
+ chrome/browser/browser_about_handler.cc    | 25 ++++++++++++++++++++--
+ chrome/browser/profiles/profile_io_data.cc |  2 ++
+ content/common/url_schemes.cc              |  2 ++
+ url/url_constants.cc                       |  4 ++++
+ url/url_constants.h                        |  4 ++++
+ url/url_util.cc                            |  7 ++++++
+ 6 files changed, 42 insertions(+), 2 deletions(-)
+
+diff --git a/chrome/browser/browser_about_handler.cc b/chrome/browser/browser_about_handler.cc
+index 9e534ff1683f1..e4d1430892548 100644
+--- a/chrome/browser/browser_about_handler.cc
++++ b/chrome/browser/browser_about_handler.cc
+@@ -32,11 +32,32 @@ bool HandleChromeAboutAndChromeSyncRewrite(
+   DCHECK(url->IsAboutBlank() || url->IsAboutSrcdoc() ||
+          !url->SchemeIs(url::kAboutScheme));
+ 
+-  // Only handle chrome: URLs.
+-  if (!url->SchemeIs(content::kChromeUIScheme))
++  // Only handle these URLs: chrome: ipfs: ipns:
++  if (!(url->SchemeIs(content::kChromeUIScheme) ||
++      url->SchemeIs(url::kIpfsScheme) ||
++      url->SchemeIs(url::kIpnsScheme)))
+     return false;
+ 
++  std::string scheme(url->scheme());
+   std::string host(url->host());
++  std::string path(url->path());
++
++  // Handle ipfs and ipns URLs
++  if (scheme == url::kIpfsScheme || scheme == url::kIpnsScheme) {
++    std::string tempPath = "/" + scheme + "/" + host + path;
++    const char* newPath = tempPath.c_str();
++    const char newHost[] = "localhost";
++    const char newPort[] = "8080";
++  
++    GURL::Replacements replacements;
++    replacements.SetSchemeStr(url::kHttpScheme);
++    replacements.SetHostStr(newHost);
++    replacements.SetPortStr(newPort);
++    replacements.SetPathStr(newPath);
++    *url = url->ReplaceComponents(replacements);
++    return false;
++  }
++
+   if (host == chrome::kChromeUIAboutHost) {
+     // Replace chrome://about with chrome://chrome-urls.
+     host = chrome::kChromeUIChromeURLsHost;
+diff --git a/chrome/browser/profiles/profile_io_data.cc b/chrome/browser/profiles/profile_io_data.cc
+index 242c2e3f1fdd1..983a9071a3ccb 100644
+--- a/chrome/browser/profiles/profile_io_data.cc
++++ b/chrome/browser/profiles/profile_io_data.cc
+@@ -26,6 +26,8 @@ bool ProfileIOData::IsHandledProtocol(const std::string& scheme) {
+   static const char* const kProtocolList[] = {
+     url::kHttpScheme,
+     url::kHttpsScheme,
++    url::kIpfsScheme,
++    url::kIpnsScheme,
+ #if BUILDFLAG(ENABLE_WEBSOCKETS)
+     url::kWsScheme,
+     url::kWssScheme,
+diff --git a/content/common/url_schemes.cc b/content/common/url_schemes.cc
+index e59440185a5fe..b40ab7fde653f 100644
+--- a/content/common/url_schemes.cc
++++ b/content/common/url_schemes.cc
+@@ -25,6 +25,8 @@ bool g_registered_url_schemes = false;
+ const char* const kDefaultSavableSchemes[] = {
+   url::kHttpScheme,
+   url::kHttpsScheme,
++  url::kIpfsScheme,
++  url::kIpnsScheme,
+   url::kFileScheme,
+   url::kFileSystemScheme,
+   kChromeDevToolsScheme,
+diff --git a/url/url_constants.cc b/url/url_constants.cc
+index 536db0644f6bd..9a43db1529a0a 100644
+--- a/url/url_constants.cc
++++ b/url/url_constants.cc
+@@ -37,6 +37,10 @@ const char kHttpScheme[] = "http";
+ const char16_t kHttpScheme16[] = u"http";
+ const char kHttpsScheme[] = "https";
+ const char16_t kHttpsScheme16[] = u"https";
++const char kIpfsScheme[] = "ipfs";
++const char16_t kIpfsScheme16[] = u"ipfs";
++const char kIpnsScheme[] = "ipns";
++const char16_t kIpnsScheme16[] = u"ipns";
+ const char kJavaScriptScheme[] = "javascript";
+ const char16_t kJavaScriptScheme16[] = u"javascript";
+ const char kMailToScheme[] = "mailto";
+diff --git a/url/url_constants.h b/url/url_constants.h
+index 728b98573c3c0..24a43d9045258 100644
+--- a/url/url_constants.h
++++ b/url/url_constants.h
+@@ -43,6 +43,10 @@ COMPONENT_EXPORT(URL) extern const char kHttpScheme[];
+ COMPONENT_EXPORT(URL) extern const char16_t kHttpScheme16[];
+ COMPONENT_EXPORT(URL) extern const char kHttpsScheme[];
+ COMPONENT_EXPORT(URL) extern const char16_t kHttpsScheme16[];
++COMPONENT_EXPORT(URL) extern const char kIpfsScheme[];
++COMPONENT_EXPORT(URL) extern const char16_t kIpfsScheme16[];
++COMPONENT_EXPORT(URL) extern const char kIpnsScheme[];
++COMPONENT_EXPORT(URL) extern const char16_t kIpnsScheme16[];
+ COMPONENT_EXPORT(URL) extern const char kJavaScriptScheme[];
+ COMPONENT_EXPORT(URL) extern const char16_t kJavaScriptScheme16[];
+ COMPONENT_EXPORT(URL) extern const char kMailToScheme[];
+diff --git a/url/url_util.cc b/url/url_util.cc
+index 244296a7f8903..5412f120ef370 100644
+--- a/url/url_util.cc
++++ b/url/url_util.cc
+@@ -35,6 +35,8 @@ struct SchemeRegistry {
+   std::vector<SchemeWithType> standard_schemes = {
+       {kHttpsScheme, SCHEME_WITH_HOST_PORT_AND_USER_INFORMATION},
+       {kHttpScheme, SCHEME_WITH_HOST_PORT_AND_USER_INFORMATION},
++      {kIpfsScheme, SCHEME_WITH_HOST_AND_PORT},
++      {kIpnsScheme, SCHEME_WITH_HOST_AND_PORT},
+       {kTraceScheme, SCHEME_WITH_HOST_PORT_AND_USER_INFORMATION},
+       // Yes, file URLs can have a hostname, so file URLs should be handled as
+       // "standard". File URLs never have a port as specified by the SchemeType
+@@ -60,11 +62,14 @@ struct SchemeRegistry {
+   std::vector<SchemeWithType> referrer_schemes = {
+       {kHttpsScheme, SCHEME_WITH_HOST_PORT_AND_USER_INFORMATION},
+       {kHttpScheme, SCHEME_WITH_HOST_PORT_AND_USER_INFORMATION},
++      {kIpfsScheme, SCHEME_WITH_HOST_AND_PORT},
++      {kIpnsScheme, SCHEME_WITH_HOST_AND_PORT},
+   };
+ 
+   // Schemes that do not trigger mixed content warning.
+   std::vector<std::string> secure_schemes = {
+       kHttpsScheme, kAboutScheme, kDataScheme, kQuicTransportScheme, kWssScheme,
++      kIpfsScheme, kIpnsScheme,
+   };
+ 
+   // Schemes that normal pages cannot link to or access (i.e., with the same
+@@ -87,6 +92,8 @@ struct SchemeRegistry {
+       kHttpsScheme,
+       kHttpScheme,
+       kDataScheme,
++      kIpfsScheme,
++      kIpnsScheme,
+   };
+ 
+   // Schemes that can be used by web to store data (local storage, etc).
+-- 
+2.25.1
+
