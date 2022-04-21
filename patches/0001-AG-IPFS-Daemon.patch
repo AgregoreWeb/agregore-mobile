@@ -1,4 +1,4 @@
-From 194197e0b5fb24d54f34a697f9450be76a3be6dd Mon Sep 17 00:00:00 2001
+From 56574603edfb64cc1fe38aea276ddb01adf53b34 Mon Sep 17 00:00:00 2001
 From: mauve <ranger@mauve.moe>
 Date: Thu, 24 Mar 2022 18:30:30 -0400
 Subject: [PATCH] AG IPFS Daemon
@@ -11,7 +11,7 @@ Subject: [PATCH] AG IPFS Daemon
  chrome/android/java/AndroidManifest.xml       |  11 +
  .../java/AndroidManifest_trichrome_chrome.xml |   2 +-
  .../values/channel_constants.xml              |   1 +
- .../mauve/agregore/mobile/IPFSService.java    | 139 ++++++++++++
+ .../mauve/agregore/mobile/IPFSService.java    | 150 +++++++++++++
  .../mauve/agregore/mobile/IPFSStarter.java    |  94 ++++++++
  .../chrome/browser/app/ChromeActivity.java    |  12 ++
  third_party/agregore-ipfs-daemon/BUILD.gn     |   9 +
@@ -21,7 +21,7 @@ Subject: [PATCH] AG IPFS Daemon
  .../agregore-ipfs-daemon.info                 |  17 ++
  third_party/agregore-ipfs-daemon/cipd.yaml    |   4 +
  .../arcore-android-sdk-client/proguard.txt    |   2 +-
- 17 files changed, 512 insertions(+), 2 deletions(-)
+ 17 files changed, 523 insertions(+), 2 deletions(-)
  create mode 100644 chrome/android/java/src/moe/mauve/agregore/mobile/IPFSService.java
  create mode 100644 chrome/android/java/src/moe/mauve/agregore/mobile/IPFSStarter.java
  create mode 100644 third_party/agregore-ipfs-daemon/BUILD.gn
@@ -141,10 +141,10 @@ index 45e0ea84a3088..2d2ea32b4b707 100644
  </resources>
 diff --git a/chrome/android/java/src/moe/mauve/agregore/mobile/IPFSService.java b/chrome/android/java/src/moe/mauve/agregore/mobile/IPFSService.java
 new file mode 100644
-index 0000000000000..df2498ff14a2f
+index 0000000000000..6bacd9f60f6e2
 --- /dev/null
 +++ b/chrome/android/java/src/moe/mauve/agregore/mobile/IPFSService.java
-@@ -0,0 +1,139 @@
+@@ -0,0 +1,150 @@
 +package moe.mauve.agregore.mobile;
 +
 +import android.os.Messenger;
@@ -216,30 +216,41 @@ index 0000000000000..df2498ff14a2f
 +			multicastLock = wifiManager.createMulticastLock(TAG);
 +		}
 +		if(!multicastLock.isHeld()) {
++			Log.i(TAG, "Acquiring multcast lock");
 +			multicastLock.acquire();
 +		}
 +	}
 +
-+	private String getInterfaceAddrs () {
-+		StringBuilder sb = new StringBuilder("");
++	 String getInterfaces() {
++		List<NetworkInterface> interfaces;
 +		try {
-+			for (NetworkInterface nif : Collections.list(NetworkInterface.getNetworkInterfaces())) {
-+				try {
-+					for (InterfaceAddress ia : nif.getInterfaceAddresses()) {
-+						String[] parts = ia.toString().split("/", 0);
-+						if (parts.length > 1) {
-+							sb.append(parts[1]);
-+							sb.append("\n");
-+						}
++			interfaces = Collections.list(NetworkInterface.getNetworkInterfaces());
++		} catch (Exception e) {
++			return "";
++		}
++
++		StringBuilder sb = new StringBuilder("");
++		for (NetworkInterface nif : interfaces) {
++			try {
++				// Android doesn't have a supportsBroadcast() but the Go net.Interface wants
++				// one, so we say the interface has broadcast if it has multicast.
++				sb.append(String.format(java.util.Locale.ROOT, "%s %d %d %b %b %b %b %b |", nif.getName(),
++								nif.getIndex(), nif.getMTU(), nif.isUp(), nif.supportsMulticast(),
++								nif.isLoopback(), nif.isPointToPoint(), nif.supportsMulticast()));
++
++				for (InterfaceAddress ia : nif.getInterfaceAddresses()) {
++					// InterfaceAddress == hostname + "/" + IP
++					String[] parts = ia.toString().split("/", 0);
++					if (parts.length > 1) {
++						sb.append(String.format(java.util.Locale.ROOT, "%s/%d ", parts[1], ia.getNetworkPrefixLength()));
 +					}
-+				} catch (Exception e) {
-+					Log.e(TAG, "Could not get interface addresses", e);
-+					// TODO should log the exception not silently suppress it.
-+					continue;
 +				}
++			} catch (Exception e) {
++				// TODO should log the exception not silently suppress it.
++				Log.e(TAG, "Could not parse network interface", e);
++				continue;
 +			}
-+		} catch (SocketException e) {
-+			Log.e(TAG, "Could not get network interface list", e);
++			sb.append("\n");
 +		}
 +		return sb.toString();
 +	}
@@ -250,7 +261,7 @@ index 0000000000000..df2498ff14a2f
 +		if(isRunning()) return;
 +		Log.i(TAG, "Starting gateway");
 +		String repoLocation = getFilesDir().getPath() + "/ipfs/";
-+		String interfaces = getInterfaceAddrs();
++		String interfaces = getNetworkInterfaces();
 +		Log.i(TAG, repoLocation);
 +		Log.i(TAG, interfaces);
 +		Gateway.run(repoLocation, interfaces);
