@@ -1,4 +1,4 @@
-From aa0919da71694b751ebcd54fd79a829b50d72299 Mon Sep 17 00:00:00 2001
+From 00c67b4584920a5db7523836549eb43738a1c413 Mon Sep 17 00:00:00 2001
 From: mauve <ranger@mauve.moe>
 Date: Wed, 23 Mar 2022 13:06:42 -0400
 Subject: [PATCH 1/1] AG Rebrand to Agregore
@@ -1761,5 +1761,5 @@ index 460cbd791f23b..45e0ea84a3088 100644
 +    <string name="dino_widget_title" translatable="false">Dino</string>
  </resources>
 -- 
-2.32.0
+2.25.1
 
