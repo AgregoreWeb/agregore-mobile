@@ -1,0 +1,729 @@
+From f89159d071a9df74e8bd76b171178509f4c661e0 Mon Sep 17 00:00:00 2001
+From: mauve <ranger@mauve.moe>
+Date: Thu, 24 Mar 2022 18:30:30 -0400
+Subject: [PATCH] AG IPFS Daemon
+
+---
+ .gitignore                                    |   3 +
+ chrome/android/BUILD.gn                       |   2 +
+ chrome/android/chrome_java_sources.gni        |   2 +
+ chrome/android/chrome_public_apk_tmpl.gni     |  10 +
+ chrome/android/java/AndroidManifest.xml       |  11 +
+ .../java/AndroidManifest_trichrome_chrome.xml |   2 +-
+ .../values/channel_constants.xml              |   1 +
+ .../mauve/agregore/mobile/IPFSService.java    | 152 +++++++++++++
+ .../mauve/agregore/mobile/IPFSStarter.java    |  94 ++++++++
+ .../chrome/browser/app/ChromeActivity.java    |  12 ++
+ third_party/agregore-ipfs-daemon/BUILD.gn     |   9 +
+ third_party/agregore-ipfs-daemon/LICENSE      | 201 ++++++++++++++++++
+ third_party/agregore-ipfs-daemon/OWNERS       |   2 +
+ .../agregore-ipfs-daemon/README.chromium      |   3 +
+ .../agregore-ipfs-daemon.info                 |  17 ++
+ third_party/agregore-ipfs-daemon/cipd.yaml    |   4 +
+ .../arcore-android-sdk-client/proguard.txt    |   2 +-
+ 17 files changed, 525 insertions(+), 2 deletions(-)
+ create mode 100644 chrome/android/java/src/moe/mauve/agregore/mobile/IPFSService.java
+ create mode 100644 chrome/android/java/src/moe/mauve/agregore/mobile/IPFSStarter.java
+ create mode 100644 third_party/agregore-ipfs-daemon/BUILD.gn
+ create mode 100644 third_party/agregore-ipfs-daemon/LICENSE
+ create mode 100644 third_party/agregore-ipfs-daemon/OWNERS
+ create mode 100644 third_party/agregore-ipfs-daemon/README.chromium
+ create mode 100644 third_party/agregore-ipfs-daemon/agregore-ipfs-daemon.info
+ create mode 100644 third_party/agregore-ipfs-daemon/cipd.yaml
+
+diff --git a/.gitignore b/.gitignore
+index 356131646ea9e..52f5a6157ad05 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -337,3 +337,6 @@ vs-chromium-project.txt
+ 
+ # Ignore the default results output directory for tools/run-swarmed.py
+ /results
++
++# Ignore agregore gateway binary since it's downloaded outside of git
++third_party/agregore-ipfs-daemon/agregore-ipfs-daemon.aar
+diff --git a/chrome/android/BUILD.gn b/chrome/android/BUILD.gn
+index 7c4472ff63998..935977adaf1d4 100644
+--- a/chrome/android/BUILD.gn
++++ b/chrome/android/BUILD.gn
+@@ -609,6 +609,8 @@ android_library("chrome_java") {
+     "//third_party/blink/public/mojom:mojom_platform_java",
+     "//third_party/gif_player:gif_player_java",
+     "//third_party/metrics_proto:metrics_proto_java",
++    # Add Agregore IPFS gateway to chrome deps
++    "//third_party/agregore-ipfs-daemon:agregore_ipfs_daemon_java",
+     "//ui/android:ui_java",
+     "//ui/base/mojom:mojom_java",
+     "//ui/gfx/geometry/mojom:mojom_java",
+diff --git a/chrome/android/chrome_java_sources.gni b/chrome/android/chrome_java_sources.gni
+index 02df4dd5b9121..0c62bb8104203 100644
+--- a/chrome/android/chrome_java_sources.gni
++++ b/chrome/android/chrome_java_sources.gni
+@@ -1134,4 +1134,6 @@ chrome_java_sources = [
+   "java/src/org/chromium/chrome/browser/webapps/launchpad/LaunchpadUtils.java",
+   "java/src/org/chromium/chrome/browser/webauth/authenticator/CableAuthenticatorActivity.java",
+   "java/src/org/chromium/chrome/browser/webshare/ShareServiceImplementationFactory.java",
++  "java/src/moe/mauve/agregore/mobile/IPFSService.java",
++  "java/src/moe/mauve/agregore/mobile/IPFSStarter.java",
+ ]
+diff --git a/chrome/android/chrome_public_apk_tmpl.gni b/chrome/android/chrome_public_apk_tmpl.gni
+index d6c610e107c5d..abcf0c551fbd0 100644
+--- a/chrome/android/chrome_public_apk_tmpl.gni
++++ b/chrome/android/chrome_public_apk_tmpl.gni
+@@ -189,6 +189,16 @@ template("chrome_public_common_apk_or_module_tmpl") {
+     resource_exclusion_regex += "|${_material_package}/xml.*badge_"
+     _material_package = "*com_google_android_material*"
+ 
++    # Agregore resources
++    deps += [ "//third_party/agregore-ipfs-daemon:agregore_ipfs_daemon_java" ]
++    if (!defined(loadable_modules)) {
++      loadable_modules = []
++    }
++    _agregore_ipfs_daemon_dir = get_label_info(
++                             "//third_party/agregore-ipfs-daemon:agregore_ipfs_daemon_java($default_toolchain)",
++                             "target_out_dir") + "/agregore_ipfs_daemon_java/jni"
++    loadable_modules += [ "$_agregore_ipfs_daemon_dir/armeabi-v7a/libgojni.so" ]
++
+     if (!_is_monochrome) {
+       product_config_java_packages = [ "org.chromium.chrome.browser" ]
+     }
+diff --git a/chrome/android/java/AndroidManifest.xml b/chrome/android/java/AndroidManifest.xml
+index f64b00cd6a00d..190a897fdd693 100644
+--- a/chrome/android/java/AndroidManifest.xml
++++ b/chrome/android/java/AndroidManifest.xml
+@@ -27,6 +27,9 @@ by a child template that "extends" this file.
+     <uses-permission-sdk-23 android:name="android.permission.ACCESS_WIFI_STATE" />
+     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+ 
++    <!-- Required for local peer discovery -->
++    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
++
+     <!--
+       Enable runtime permissions as uses-permission in tip of tree builds
+       only for ease of development on Android L and earlier. For consumer
+@@ -915,6 +918,14 @@ by a child template that "extends" this file.
+             android:exported="false">
+         </service>
+ 
++        <!-- IPFS daemon service -->
++        <service
++            android:name="moe.mauve.agregore.mobile.IPFSService"
++            android:exported="false"
++            android:label="@string/ipfs_service_title"
++            android:process=":ipfs_service"
++        />
++
+         <!-- Quick Action Search widget -->
+         <receiver
+             android:name="org.chromium.chrome.browser.quickactionsearchwidget.QuickActionSearchWidgetProvider$QuickActionSearchWidgetProviderSearch"
+diff --git a/chrome/android/java/AndroidManifest_trichrome_chrome.xml b/chrome/android/java/AndroidManifest_trichrome_chrome.xml
+index 40cdccab4317b..609281c83d972 100644
+--- a/chrome/android/java/AndroidManifest_trichrome_chrome.xml
++++ b/chrome/android/java/AndroidManifest_trichrome_chrome.xml
+@@ -9,7 +9,7 @@
+ {% block extra_application_attributes %}
+ {{ super() }}
+ android:multiArch="true"
+-android:extractNativeLibs="false"
++android:extractNativeLibs="true"
+ {{use32bitAbi|default('')}}
+ {% endblock %}
+ 
+diff --git a/chrome/android/java/res_chromium_base/values/channel_constants.xml b/chrome/android/java/res_chromium_base/values/channel_constants.xml
+index 45e0ea84a3088..2d2ea32b4b707 100644
+--- a/chrome/android/java/res_chromium_base/values/channel_constants.xml
++++ b/chrome/android/java/res_chromium_base/values/channel_constants.xml
+@@ -10,4 +10,5 @@
+     <string name="search_widget_title" translatable="false">Search</string>
+     <string name="quick_action_search_widget_title" translatable="false">Quick action search</string>
+     <string name="dino_widget_title" translatable="false">Dino</string>
++    <string name="ipfs_service_title" translatable="false">IPFS Service</string>
+ </resources>
+diff --git a/chrome/android/java/src/moe/mauve/agregore/mobile/IPFSService.java b/chrome/android/java/src/moe/mauve/agregore/mobile/IPFSService.java
+new file mode 100644
+index 0000000000000..a3efe3a500cc1
+--- /dev/null
++++ b/chrome/android/java/src/moe/mauve/agregore/mobile/IPFSService.java
+@@ -0,0 +1,152 @@
++package moe.mauve.agregore.mobile;
++
++import android.os.Messenger;
++import android.os.IBinder;
++import android.os.Message;
++import android.os.Handler;
++
++import android.app.Service;
++import android.content.Intent;
++import android.content.Context;
++
++import android.util.Log;
++
++import android.net.wifi.WifiManager;
++import android.net.wifi.WifiManager.MulticastLock;
++
++import java.util.Collections;
++import java.util.List;
++
++import java.net.InterfaceAddress;
++import java.net.NetworkInterface;
++import java.net.SocketException;
++
++import moe.mauve.agregore.ipfs.gateway.Gateway;
++
++public class IPFSService extends Service implements Handler.Callback {
++	public static String TAG = "IPFSService";
++
++	/**
++	* Commands for the service to send over the Messenger
++	*/
++	public static final int START = 1;
++	public static final int STOP = 2;
++
++	private Messenger messenger;
++	private WifiManager wifiManager = null;
++	private MulticastLock multicastLock = null;
++
++	@Override
++	public boolean handleMessage(Message msg) {
++		int what = msg.what;
++		Log.d(TAG, "Got message from binder: ");
++		if(what == START) {
++				startProcess();
++				return true;
++		} else if(what == STOP) {
++				stopProcess();
++				return true;
++		} else {
++				Log.d(TAG, "Got unknown message type.");
++		}
++		// TODO: What if it's totally invalid?
++		return false;
++	}
++
++	public boolean isRunning() {
++		return Gateway.isRunning();
++	}
++
++	public boolean isMulticastLocked() {
++		if(multicastLock == null) return false;
++		return multicastLock.isHeld();
++	}
++
++	private void lockMuticast() {
++		if(wifiManager == null) {
++			wifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
++		}
++		if(multicastLock == null) {
++			multicastLock = wifiManager.createMulticastLock(TAG);
++		}
++		if(!multicastLock.isHeld()) {
++			Log.i(TAG, "Acquiring multcast lock");
++			multicastLock.acquire();
++		}
++	}
++
++	private String getInterfaces() {
++		List<NetworkInterface> interfaces;
++		try {
++			interfaces = Collections.list(NetworkInterface.getNetworkInterfaces());
++		} catch (Exception e) {
++			Log.e(TAG, "Could not get network interfaces", e);
++			return "";
++		}
++
++		StringBuilder sb = new StringBuilder("");
++		for (NetworkInterface nif : interfaces) {
++			try {
++				// Android doesn't have a supportsBroadcast() but the Go net.Interface wants
++				// one, so we say the interface has broadcast if it has multicast.
++				sb.append(String.format(java.util.Locale.ROOT, "%s %d %d %b %b %b %b %b |", nif.getName(),
++								nif.getIndex(), nif.getMTU(), nif.isUp(), nif.supportsMulticast(),
++								nif.isLoopback(), nif.isPointToPoint(), nif.supportsMulticast()));
++
++				for (InterfaceAddress ia : nif.getInterfaceAddresses()) {
++					// InterfaceAddress == hostname + "/" + IP
++					String[] parts = ia.toString().split("/", 0);
++					if (parts.length > 1) {
++						sb.append(String.format(java.util.Locale.ROOT, "%s/%d ", parts[1], ia.getNetworkPrefixLength()));
++					}
++				}
++			} catch (Exception e) {
++				// TODO should log the exception not silently suppress it.
++				Log.e(TAG, "Could not parse network interface", e);
++				continue;
++			}
++			sb.append("\n");
++		}
++		return sb.toString();
++	}
++
++	public void startProcess() {
++		lockMuticast();
++		Log.d(TAG, "startProcess()");
++		if(isRunning()) return;
++		Log.i(TAG, "Starting gateway");
++		String repoLocation = getFilesDir().getPath() + "/ipfs/";
++		String interfaces = getInterfaces();
++		Log.i(TAG, repoLocation);
++		Log.i(TAG, interfaces);
++		Gateway.run(repoLocation, interfaces);
++	}
++
++	public void stopProcess() {
++		if(isMulticastLocked()) {
++			multicastLock.release();
++		}
++		if(isRunning()) {
++		  Gateway.stop();
++		}
++	}
++
++	/*
++		We should stop the process if the service is getting destroyed
++	*/
++	@Override
++	public void onDestroy() {
++		stopProcess();
++	}
++
++	/**
++	* When binding to the service, we return an interface to our messenger
++	* for sending messages to the service.
++	*/
++	@Override
++	public IBinder onBind(Intent intent) {
++	  // TODO: Use a dedicated looper? I think the service gets its own one, right?
++		messenger = new Messenger(new Handler(getMainLooper(), this));
++		return messenger.getBinder();
++	}
++}
+diff --git a/chrome/android/java/src/moe/mauve/agregore/mobile/IPFSStarter.java b/chrome/android/java/src/moe/mauve/agregore/mobile/IPFSStarter.java
+new file mode 100644
+index 0000000000000..1e13a955e4f93
+--- /dev/null
++++ b/chrome/android/java/src/moe/mauve/agregore/mobile/IPFSStarter.java
+@@ -0,0 +1,94 @@
++package moe.mauve.agregore.mobile;
++
++import android.content.Context;
++import android.content.Intent;
++import android.content.ComponentName;
++import android.content.ServiceConnection;
++
++import android.os.Messenger;
++import android.os.IBinder;
++import android.os.Message;
++import android.os.RemoteException;
++
++import android.util.Log;
++
++public class IPFSStarter {
++	public static final String TAG = "IPFSStarter";
++	Context context = null;
++	Messenger messenger = null;
++	boolean isBound = false;
++	boolean shouldAutoStart = false;
++
++	/**
++	* Class for interacting with the main interface of the service.
++	*/
++	private ServiceConnection connectionListener = new ServiceConnection() {
++		public void onServiceConnected(ComponentName className, IBinder service) {
++			Log.d(TAG, "Service connected");
++			// This is called when the connection with the service has been
++			// established, giving us the object we can use to
++			// interact with the service.  We are communicating with the
++			// service using a Messenger, so here we get a client-side
++			// representation of that from the raw IBinder object.
++			messenger = new Messenger(service);
++			isBound = true;
++			if(shouldAutoStart) {
++				Log.d(TAG, "Autostarting");
++				sendStartGateway();
++			}
++		}
++
++		public void onServiceDisconnected(ComponentName className) {
++			Log.d(TAG, "Service disconnected");
++			// This is called when the connection with the service has been
++			// unexpectedly disconnected -- that is, its process crashed.
++			messenger = null;
++			isBound = false;
++		}
++	};
++
++	public boolean isBound() {
++		return isBound;
++	}
++
++	private void sendMessage(int type) {
++		if (!isBound) return; // TODO: Throw an error?
++		Message message = Message.obtain(null, type, 0, 0);
++		try {
++			messenger.send(message);
++		} catch (RemoteException e) {
++			e.printStackTrace();
++		}
++	}
++
++	public void sendStartGateway() {
++		this.sendMessage(IPFSService.START);
++	}
++
++	public void sendStopGateway() {
++		this.sendMessage(IPFSService.STOP);
++	}
++
++	public void loadService(Context binder) {
++		loadService(binder, false);
++	}
++
++	public void loadService(Context binder, boolean autoStart) {
++		// Don't bother loading if we're already loaded!
++		if (isBound) return;
++		Log.d(TAG, "Binding to service");
++		shouldAutoStart = autoStart;
++		context = binder;
++		Intent intent = new Intent(context, IPFSService.class);
++		context.bindService(intent, connectionListener, Context.BIND_AUTO_CREATE);
++	}
++
++	public void unloadService() {
++		if(context != null && isBound) {
++			Log.d(TAG, "Unbinding service");
++			context.unbindService(connectionListener);
++			context = null;
++		}
++	}
++}
++
+diff --git a/chrome/android/java/src/org/chromium/chrome/browser/app/ChromeActivity.java b/chrome/android/java/src/org/chromium/chrome/browser/app/ChromeActivity.java
+index 7bab199f3d37e..63f843ca10e12 100644
+--- a/chrome/android/java/src/org/chromium/chrome/browser/app/ChromeActivity.java
++++ b/chrome/android/java/src/org/chromium/chrome/browser/app/ChromeActivity.java
+@@ -251,6 +251,8 @@ import java.util.ArrayList;
+ import java.util.List;
+ import java.util.function.Consumer;
+ 
++import moe.mauve.agregore.mobile.IPFSStarter;
++
+ /**
+  * A {@link AsyncInitializationActivity} that builds and manages a {@link CompositorViewHolder}
+  * and associated classes.
+@@ -392,6 +394,9 @@ public abstract class ChromeActivity<C extends ChromeActivityComponent>
+     private boolean mLastPictureInPictureModeForTesting;
+     private SubscriptionsManager mSubscriptionsManager;
+ 
++    // Agregore related variables
++    private IPFSStarter ipfs = new IPFSStarter();
++
+     protected ChromeActivity() {
+         mIntentHandler = new IntentHandler(this, createIntentHandlerDelegate());
+         mManualFillingComponentSupplier.set(ManualFillingComponentFactory.createComponent());
+@@ -1287,6 +1292,9 @@ public abstract class ChromeActivity<C extends ChromeActivityComponent>
+                     "Android.PlayServices.Version", playServicesVersion);
+ 
+             FontSizePrefs.getInstance().recordUserFontPrefOnStartup();
++
++            // Load service and autostart the gateway
++            ipfs.loadService(this, true);
+         });
+ 
+         // GSA connection is not needed on low-end devices because Icing is disabled.
+@@ -1541,6 +1549,10 @@ public abstract class ChromeActivity<C extends ChromeActivityComponent>
+ 
+         mComponent = null;
+ 
++        if (ipfs.isBound()) {
++            ipfs.unloadService();
++        }
++
+         super.onDestroy();
+     }
+ 
+diff --git a/third_party/agregore-ipfs-daemon/BUILD.gn b/third_party/agregore-ipfs-daemon/BUILD.gn
+new file mode 100644
+index 0000000000000..abdac2b60bc9a
+--- /dev/null
++++ b/third_party/agregore-ipfs-daemon/BUILD.gn
+@@ -0,0 +1,9 @@
++# Agregore IPFS Daemon Dependency
++
++import("//build/config/android/rules.gni")
++
++android_aar_prebuilt("agregore_ipfs_daemon_java") {
++  aar_path = "agregore-ipfs-daemon.aar"
++  info_path = "agregore-ipfs-daemon.info"
++  extract_native_libraries = true
++}
+diff --git a/third_party/agregore-ipfs-daemon/LICENSE b/third_party/agregore-ipfs-daemon/LICENSE
+new file mode 100644
+index 0000000000000..261eeb9e9f8b2
+--- /dev/null
++++ b/third_party/agregore-ipfs-daemon/LICENSE
+@@ -0,0 +1,201 @@
++                                 Apache License
++                           Version 2.0, January 2004
++                        http://www.apache.org/licenses/
++
++   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
++
++   1. Definitions.
++
++      "License" shall mean the terms and conditions for use, reproduction,
++      and distribution as defined by Sections 1 through 9 of this document.
++
++      "Licensor" shall mean the copyright owner or entity authorized by
++      the copyright owner that is granting the License.
++
++      "Legal Entity" shall mean the union of the acting entity and all
++      other entities that control, are controlled by, or are under common
++      control with that entity. For the purposes of this definition,
++      "control" means (i) the power, direct or indirect, to cause the
++      direction or management of such entity, whether by contract or
++      otherwise, or (ii) ownership of fifty percent (50%) or more of the
++      outstanding shares, or (iii) beneficial ownership of such entity.
++
++      "You" (or "Your") shall mean an individual or Legal Entity
++      exercising permissions granted by this License.
++
++      "Source" form shall mean the preferred form for making modifications,
++      including but not limited to software source code, documentation
++      source, and configuration files.
++
++      "Object" form shall mean any form resulting from mechanical
++      transformation or translation of a Source form, including but
++      not limited to compiled object code, generated documentation,
++      and conversions to other media types.
++
++      "Work" shall mean the work of authorship, whether in Source or
++      Object form, made available under the License, as indicated by a
++      copyright notice that is included in or attached to the work
++      (an example is provided in the Appendix below).
++
++      "Derivative Works" shall mean any work, whether in Source or Object
++      form, that is based on (or derived from) the Work and for which the
++      editorial revisions, annotations, elaborations, or other modifications
++      represent, as a whole, an original work of authorship. For the purposes
++      of this License, Derivative Works shall not include works that remain
++      separable from, or merely link (or bind by name) to the interfaces of,
++      the Work and Derivative Works thereof.
++
++      "Contribution" shall mean any work of authorship, including
++      the original version of the Work and any modifications or additions
++      to that Work or Derivative Works thereof, that is intentionally
++      submitted to Licensor for inclusion in the Work by the copyright owner
++      or by an individual or Legal Entity authorized to submit on behalf of
++      the copyright owner. For the purposes of this definition, "submitted"
++      means any form of electronic, verbal, or written communication sent
++      to the Licensor or its representatives, including but not limited to
++      communication on electronic mailing lists, source code control systems,
++      and issue tracking systems that are managed by, or on behalf of, the
++      Licensor for the purpose of discussing and improving the Work, but
++      excluding communication that is conspicuously marked or otherwise
++      designated in writing by the copyright owner as "Not a Contribution."
++
++      "Contributor" shall mean Licensor and any individual or Legal Entity
++      on behalf of whom a Contribution has been received by Licensor and
++      subsequently incorporated within the Work.
++
++   2. Grant of Copyright License. Subject to the terms and conditions of
++      this License, each Contributor hereby grants to You a perpetual,
++      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
++      copyright license to reproduce, prepare Derivative Works of,
++      publicly display, publicly perform, sublicense, and distribute the
++      Work and such Derivative Works in Source or Object form.
++
++   3. Grant of Patent License. Subject to the terms and conditions of
++      this License, each Contributor hereby grants to You a perpetual,
++      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
++      (except as stated in this section) patent license to make, have made,
++      use, offer to sell, sell, import, and otherwise transfer the Work,
++      where such license applies only to those patent claims licensable
++      by such Contributor that are necessarily infringed by their
++      Contribution(s) alone or by combination of their Contribution(s)
++      with the Work to which such Contribution(s) was submitted. If You
++      institute patent litigation against any entity (including a
++      cross-claim or counterclaim in a lawsuit) alleging that the Work
++      or a Contribution incorporated within the Work constitutes direct
++      or contributory patent infringement, then any patent licenses
++      granted to You under this License for that Work shall terminate
++      as of the date such litigation is filed.
++
++   4. Redistribution. You may reproduce and distribute copies of the
++      Work or Derivative Works thereof in any medium, with or without
++      modifications, and in Source or Object form, provided that You
++      meet the following conditions:
++
++      (a) You must give any other recipients of the Work or
++          Derivative Works a copy of this License; and
++
++      (b) You must cause any modified files to carry prominent notices
++          stating that You changed the files; and
++
++      (c) You must retain, in the Source form of any Derivative Works
++          that You distribute, all copyright, patent, trademark, and
++          attribution notices from the Source form of the Work,
++          excluding those notices that do not pertain to any part of
++          the Derivative Works; and
++
++      (d) If the Work includes a "NOTICE" text file as part of its
++          distribution, then any Derivative Works that You distribute must
++          include a readable copy of the attribution notices contained
++          within such NOTICE file, excluding those notices that do not
++          pertain to any part of the Derivative Works, in at least one
++          of the following places: within a NOTICE text file distributed
++          as part of the Derivative Works; within the Source form or
++          documentation, if provided along with the Derivative Works; or,
++          within a display generated by the Derivative Works, if and
++          wherever such third-party notices normally appear. The contents
++          of the NOTICE file are for informational purposes only and
++          do not modify the License. You may add Your own attribution
++          notices within Derivative Works that You distribute, alongside
++          or as an addendum to the NOTICE text from the Work, provided
++          that such additional attribution notices cannot be construed
++          as modifying the License.
++
++      You may add Your own copyright statement to Your modifications and
++      may provide additional or different license terms and conditions
++      for use, reproduction, or distribution of Your modifications, or
++      for any such Derivative Works as a whole, provided Your use,
++      reproduction, and distribution of the Work otherwise complies with
++      the conditions stated in this License.
++
++   5. Submission of Contributions. Unless You explicitly state otherwise,
++      any Contribution intentionally submitted for inclusion in the Work
++      by You to the Licensor shall be under the terms and conditions of
++      this License, without any additional terms or conditions.
++      Notwithstanding the above, nothing herein shall supersede or modify
++      the terms of any separate license agreement you may have executed
++      with Licensor regarding such Contributions.
++
++   6. Trademarks. This License does not grant permission to use the trade
++      names, trademarks, service marks, or product names of the Licensor,
++      except as required for reasonable and customary use in describing the
++      origin of the Work and reproducing the content of the NOTICE file.
++
++   7. Disclaimer of Warranty. Unless required by applicable law or
++      agreed to in writing, Licensor provides the Work (and each
++      Contributor provides its Contributions) on an "AS IS" BASIS,
++      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
++      implied, including, without limitation, any warranties or conditions
++      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
++      PARTICULAR PURPOSE. You are solely responsible for determining the
++      appropriateness of using or redistributing the Work and assume any
++      risks associated with Your exercise of permissions under this License.
++
++   8. Limitation of Liability. In no event and under no legal theory,
++      whether in tort (including negligence), contract, or otherwise,
++      unless required by applicable law (such as deliberate and grossly
++      negligent acts) or agreed to in writing, shall any Contributor be
++      liable to You for damages, including any direct, indirect, special,
++      incidental, or consequential damages of any character arising as a
++      result of this License or out of the use or inability to use the
++      Work (including but not limited to damages for loss of goodwill,
++      work stoppage, computer failure or malfunction, or any and all
++      other commercial damages or losses), even if such Contributor
++      has been advised of the possibility of such damages.
++
++   9. Accepting Warranty or Additional Liability. While redistributing
++      the Work or Derivative Works thereof, You may choose to offer,
++      and charge a fee for, acceptance of support, warranty, indemnity,
++      or other liability obligations and/or rights consistent with this
++      License. However, in accepting such obligations, You may act only
++      on Your own behalf and on Your sole responsibility, not on behalf
++      of any other Contributor, and only if You agree to indemnify,
++      defend, and hold each Contributor harmless for any liability
++      incurred by, or claims asserted against, such Contributor by reason
++      of your accepting any such warranty or additional liability.
++
++   END OF TERMS AND CONDITIONS
++
++   APPENDIX: How to apply the Apache License to your work.
++
++      To apply the Apache License to your work, attach the following
++      boilerplate notice, with the fields enclosed by brackets "[]"
++      replaced with your own identifying information. (Don't include
++      the brackets!)  The text should be enclosed in the appropriate
++      comment syntax for the file format. We also recommend that a
++      file or class name and description of purpose be included on the
++      same "printed page" as the copyright notice for easier
++      identification within third-party archives.
++
++   Copyright [yyyy] [name of copyright owner]
++
++   Licensed under the Apache License, Version 2.0 (the "License");
++   you may not use this file except in compliance with the License.
++   You may obtain a copy of the License at
++
++       http://www.apache.org/licenses/LICENSE-2.0
++
++   Unless required by applicable law or agreed to in writing, software
++   distributed under the License is distributed on an "AS IS" BASIS,
++   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++   See the License for the specific language governing permissions and
++   limitations under the License.
+diff --git a/third_party/agregore-ipfs-daemon/OWNERS b/third_party/agregore-ipfs-daemon/OWNERS
+new file mode 100644
+index 0000000000000..08e303b54b1ae
+--- /dev/null
++++ b/third_party/agregore-ipfs-daemon/OWNERS
+@@ -0,0 +1,2 @@
++# For changes and questions
++contact@mauve.moe
+diff --git a/third_party/agregore-ipfs-daemon/README.chromium b/third_party/agregore-ipfs-daemon/README.chromium
+new file mode 100644
+index 0000000000000..41a33408ea49f
+--- /dev/null
++++ b/third_party/agregore-ipfs-daemon/README.chromium
+@@ -0,0 +1,3 @@
++# Agregore IPFS Daemon
++
++Based on https://github.com/AgregoreWeb/agregore-ipfs-daemon
+diff --git a/third_party/agregore-ipfs-daemon/agregore-ipfs-daemon.info b/third_party/agregore-ipfs-daemon/agregore-ipfs-daemon.info
+new file mode 100644
+index 0000000000000..55926c129b48d
+--- /dev/null
++++ b/third_party/agregore-ipfs-daemon/agregore-ipfs-daemon.info
+@@ -0,0 +1,17 @@
++# Generated by //build/android/gyp/aar.py
++# To regenerate, use "update_android_aar_prebuilts = true" and run "gn gen".
++
++aidl = []
++assets = []
++has_classes_jar = true
++has_native_libraries = true
++has_proguard_flags = true
++has_r_text_file = false
++is_manifest_empty = true
++manifest_package = "go.gateway.gojni"
++native_libraries = [
++  "jni/armeabi-v7a/libgojni.so"
++]
++resources = []
++subjar_tuples = []
++subjars = []
+diff --git a/third_party/agregore-ipfs-daemon/cipd.yaml b/third_party/agregore-ipfs-daemon/cipd.yaml
+new file mode 100644
+index 0000000000000..80bf4ca0ef553
+--- /dev/null
++++ b/third_party/agregore-ipfs-daemon/cipd.yaml
+@@ -0,0 +1,4 @@
++package: chromium/third_party/agregore-ipfs-daemon
++description: IPFS Daemon for Agregore Mobile
++data:
++  - file: "agregore-ipfs-gateway.aar"
+diff --git a/third_party/arcore-android-sdk-client/proguard.txt b/third_party/arcore-android-sdk-client/proguard.txt
+index 761eb9511d53d..009269c15bec1 100644
+--- a/third_party/arcore-android-sdk-client/proguard.txt
++++ b/third_party/arcore-android-sdk-client/proguard.txt
+@@ -44,4 +44,4 @@
+ -keep @com.google.vr.dynamite.client.UsedByReflection class *
+ -keepclassmembers class * {
+     @com.google.vr.dynamite.client.UsedByReflection *;
+-}
+\ No newline at end of file
++}
+-- 
+2.32.0
+

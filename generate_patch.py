@@ -30,7 +30,11 @@ n = args["n"]
 patch_dir = os.path.join(root, 'patches')
 
 print("Generating patch from latest commit")
-to_run = f'git format-patch -n {n} -o {patch_dir}'
-subprocess.run(to_run, cwd=chromium, shell=True, check=True, env=env)
+to_run = f'git format-patch {n} -o {patch_dir}'
+result = subprocess.run(to_run, cwd=chromium, shell=True,
+                        check=True, env=env, encoding="utf8")
+
+patch_name = result.stdout
+
 
 print("Done!")

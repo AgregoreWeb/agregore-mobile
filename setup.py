@@ -98,7 +98,11 @@ bromite_patch_script = os.path.join(root, 'patch_with_bromite.py')
 subprocess.run(bromite_patch_script, cwd=root, shell=True, check=True)
 
 print("Running Agregore Patch Script")
-agregore_patch_script = os.path.join(root, 'patch_with_agregore.py')
+agregore_patch_script = os.path.join(root, 'apply_agregore_patches.py')
 subprocess.run(agregore_patch_script, cwd=root, shell=True, check=True)
+
+print("Running Download IPFS Daemon Script")
+download_ipfs_daemon_script = os.path.join(root, 'download_ipfs_daemon.py')
+subprocess.run(download_ipfs_daemon_script, cwd=root, shell=True, check=True)
 
 print("Really Done!")

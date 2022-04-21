@@ -37,11 +37,13 @@ for patch_name in patch_list:
         stderr=PIPE, encoding="utf8"
     )
     if result.returncode != 0:
-        if 'patch does not apply' not in result.stderr:
+        # If the patch was already applied, skip it. 🤷
+        if 'patch does not apply' in result.stderr:
             print(f"Patch {patch_name} does not apply, skipping")
             subprocess.run("git am --skip", cwd=chromium,
                            shell=True, check=True)
         else:
+            print(result.stderr)
             result.check_returncode()
 
 print("Done!")
