@@ -1,0 +1,118 @@
+From b018ac27ecf2086db9386dc62c4e1f186b09a92a Mon Sep 17 00:00:00 2001
+From: Madrets <emmanuel.elite.46@gmail.com>
+Date: Wed, 20 Apr 2022 20:59:12 -0400
+Subject: [PATCH 1/1] AG Handles IPFS and IPNS URLs
+
+---
+ chrome/browser/browser_about_handler.cc    | 23 ++++++++++++++++++++--
+ chrome/browser/profiles/profile_io_data.cc |  2 ++
+ content/common/url_schemes.cc              |  2 ++
+ url/url_constants.cc                       |  4 ++++
+ url/url_constants.h                        |  4 ++++
+ 5 files changed, 33 insertions(+), 2 deletions(-)
+
+diff --git a/chrome/browser/browser_about_handler.cc b/chrome/browser/browser_about_handler.cc
+index db36219ded278..e430ba0f6c99b 100644
+--- a/chrome/browser/browser_about_handler.cc
++++ b/chrome/browser/browser_about_handler.cc
+@@ -32,13 +32,16 @@ bool HandleChromeAboutAndChromeSyncRewrite(
+   DCHECK(url->IsAboutBlank() || url->IsAboutSrcdoc() ||
+          !url->SchemeIs(url::kAboutScheme));
+ 
+-  // Only handle chrome: and agregore: URLs.
++  // Only handle these URLs: chrome: agregore: ipfs: ipns:
+   if (!(url->SchemeIs(content::kChromeUIScheme) ||
++      url->SchemeIs(url::kIpfsScheme) ||
++      url->SchemeIs(url::kIpnsScheme) ||
+       url->SchemeIs(content::kAgregoreUIScheme)))
+     return false;
+ 
+-  std::string host(url->host());
+   std::string scheme(url->scheme());
++  std::string host(url->host());
++  std::string path(url->path());
+ 
+   // Handle Agregore URLs
+   if (scheme == content::kAgregoreUIScheme) {
+@@ -52,6 +55,22 @@ bool HandleChromeAboutAndChromeSyncRewrite(
+     return false;
+   }
+ 
++  // Handle ipfs and ipns URLs
++  if (scheme == url::kIpfsScheme || scheme == url::kIpnsScheme) {
++    std::string tempPath = "/" + scheme + "/" + host + path;
++    const char* newPath = tempPath.c_str();
++    const char newHost[] = "localhost";
++    const char newPort[] = "8080";
++    
++    GURL::Replacements replacements;
++    replacements.SetSchemeStr(url::kHttpScheme);
++    replacements.SetHostStr(newHost);
++    replacements.SetPortStr(newPort);
++    replacements.SetPathStr(newPath);
++    *url = url->ReplaceComponents(replacements);
++    return false;
++  }
++
+   if (host == chrome::kChromeUIAboutHost) {
+     // Replace chrome://about with chrome://chrome-urls.
+     host = chrome::kChromeUIChromeURLsHost;
+diff --git a/chrome/browser/profiles/profile_io_data.cc b/chrome/browser/profiles/profile_io_data.cc
+index 5eeea967a49ab..79a8123fabf91 100644
+--- a/chrome/browser/profiles/profile_io_data.cc
++++ b/chrome/browser/profiles/profile_io_data.cc
+@@ -26,6 +26,8 @@ bool ProfileIOData::IsHandledProtocol(const std::string& scheme) {
+   static const char* const kProtocolList[] = {
+     url::kHttpScheme,
+     url::kHttpsScheme,
++    url::kIpfsScheme,
++    url::kIpnsScheme,
+ #if BUILDFLAG(ENABLE_WEBSOCKETS)
+     url::kWsScheme,
+     url::kWssScheme,
+diff --git a/content/common/url_schemes.cc b/content/common/url_schemes.cc
+index f1071a52e83bf..83cf183fd3a16 100644
+--- a/content/common/url_schemes.cc
++++ b/content/common/url_schemes.cc
+@@ -25,6 +25,8 @@ bool g_registered_url_schemes = false;
+ const char* const kDefaultSavableSchemes[] = {
+   url::kHttpScheme,
+   url::kHttpsScheme,
++  url::kIpfsScheme,
++  url::kIpnsScheme,
+   url::kFileScheme,
+   url::kFileSystemScheme,
+   kChromeDevToolsScheme,
+diff --git a/url/url_constants.cc b/url/url_constants.cc
+index 536db0644f6bd..9a43db1529a0a 100644
+--- a/url/url_constants.cc
++++ b/url/url_constants.cc
+@@ -37,6 +37,10 @@ const char kHttpScheme[] = "http";
+ const char16_t kHttpScheme16[] = u"http";
+ const char kHttpsScheme[] = "https";
+ const char16_t kHttpsScheme16[] = u"https";
++const char kIpfsScheme[] = "ipfs";
++const char16_t kIpfsScheme16[] = u"ipfs";
++const char kIpnsScheme[] = "ipns";
++const char16_t kIpnsScheme16[] = u"ipns";
+ const char kJavaScriptScheme[] = "javascript";
+ const char16_t kJavaScriptScheme16[] = u"javascript";
+ const char kMailToScheme[] = "mailto";
+diff --git a/url/url_constants.h b/url/url_constants.h
+index 728b98573c3c0..119c7e385f02f 100644
+--- a/url/url_constants.h
++++ b/url/url_constants.h
+@@ -43,6 +43,10 @@ COMPONENT_EXPORT(URL) extern const char kHttpScheme[];
+ COMPONENT_EXPORT(URL) extern const char16_t kHttpScheme16[];
+ COMPONENT_EXPORT(URL) extern const char kHttpsScheme[];
+ COMPONENT_EXPORT(URL) extern const char16_t kHttpsScheme16[];
++COMPONENT_EXPORT(URL) extern const char kIpfsScheme[];
++COMPONENT_EXPORT(URL) extern const char16_t kIpfsScheme16[]; 
++COMPONENT_EXPORT(URL) extern const char kIpnsScheme[];
++COMPONENT_EXPORT(URL) extern const char16_t kIpnsScheme16[];
+ COMPONENT_EXPORT(URL) extern const char kJavaScriptScheme[];
+ COMPONENT_EXPORT(URL) extern const char16_t kJavaScriptScheme16[];
+ COMPONENT_EXPORT(URL) extern const char kMailToScheme[];
+-- 
+2.25.1
+
