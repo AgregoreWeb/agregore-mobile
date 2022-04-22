@@ -1,0 +1,4 @@
+Bromite-auto-updater.patch
+Bromite-package-name.patch
+# Not sure why, but this patch keeps breaking
+Disable-minidump-upload-scheduling.patch

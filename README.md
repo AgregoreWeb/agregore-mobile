@@ -15,14 +15,20 @@ How it works:
 	- Chromium build tools are set up in `./depot_tools`
 	- A Chromium source tree is set up in `./chromium` (this takes huge amounts of space)
 	- A `Bromite` source tree is set up in `./bromite` (this doesn't take much space)
-- Run `./patch_with_bromite.py` to checkout the correct version of Chromium and to apply the bromite patches to it
+- Run `./checkout_bromite_tag.py` to checkout the correct version of bromite to base the browser on
+	- Run this when the bromite version gets updated, you must then re-apply the bromite patches, it will auto-run at setup
+	- `bromite_tag.txt` is where you can update the bromite version to build on top of
+- Run `./apply_bromite_patches.py` to checkout the correct version of Chromium and to apply the bromite patches to it
   - Run this whenever bromite gets updated, it will auto-run at setup
+  - You will need to re-apply agregore patches next since the git state will be reset
 - Run `./apply_agregore_patches.py` to apply Agregore patches to the Chromium tree
   - Run this whenever there are new Agregore patches to apply. It will auto-run at setup
 - Run `./download_ipfs_daemon.py` to download the latest version of the [Agregore IPFS Daemon](https://github.com/AgregoreWeb/agregore-ipfs-daemon/)
 	- Run this whenever a new version is available to update. It will auto-run at setup
+	- The version of the daemon that we're using can be found inside `daemon_tag.txt`, update this with new versions
+	- Note: you can instead place an AAR of the daemon into `chromium/src/third_party/agregore-ipfs-daemon/agregore-ipfs-daemon.aar`
 - Run `./prebuild.py` to sync dependencies needed to perform a build.
-	- This can be skipped if you're just adding changes, dependenices can take an extra 30 GB of space
+	- This can be skipped if you're just adding changes, dependenices can take an extra 60 GB of space
 - Run `./build.py` to trigger a new build of the browser
   - You'll need to be running Ubuntu 18 in order to do a successful build.
   Automated builds via a [build server](https://build.mauve.moe) are a work in progress.

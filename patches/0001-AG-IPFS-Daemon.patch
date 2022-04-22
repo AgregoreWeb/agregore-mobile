@@ -1,4 +1,4 @@
-From f89159d071a9df74e8bd76b171178509f4c661e0 Mon Sep 17 00:00:00 2001
+From e73c032e90e865d33f65639f065731217b33013d Mon Sep 17 00:00:00 2001
 From: mauve <ranger@mauve.moe>
 Date: Thu, 24 Mar 2022 18:30:30 -0400
 Subject: [PATCH] AG IPFS Daemon
@@ -13,7 +13,7 @@ Subject: [PATCH] AG IPFS Daemon
  .../values/channel_constants.xml              |   1 +
  .../mauve/agregore/mobile/IPFSService.java    | 152 +++++++++++++
  .../mauve/agregore/mobile/IPFSStarter.java    |  94 ++++++++
- .../chrome/browser/app/ChromeActivity.java    |  12 ++
+ .../chrome/browser/app/ChromeActivity.java    |  13 ++
  third_party/agregore-ipfs-daemon/BUILD.gn     |   9 +
  third_party/agregore-ipfs-daemon/LICENSE      | 201 ++++++++++++++++++
  third_party/agregore-ipfs-daemon/OWNERS       |   2 +
@@ -21,7 +21,7 @@ Subject: [PATCH] AG IPFS Daemon
  .../agregore-ipfs-daemon.info                 |  17 ++
  third_party/agregore-ipfs-daemon/cipd.yaml    |   4 +
  .../arcore-android-sdk-client/proguard.txt    |   2 +-
- 17 files changed, 525 insertions(+), 2 deletions(-)
+ 17 files changed, 526 insertions(+), 2 deletions(-)
  create mode 100644 chrome/android/java/src/moe/mauve/agregore/mobile/IPFSService.java
  create mode 100644 chrome/android/java/src/moe/mauve/agregore/mobile/IPFSStarter.java
  create mode 100644 third_party/agregore-ipfs-daemon/BUILD.gn
@@ -32,7 +32,7 @@ Subject: [PATCH] AG IPFS Daemon
  create mode 100644 third_party/agregore-ipfs-daemon/cipd.yaml
 
 diff --git a/.gitignore b/.gitignore
-index 356131646ea9e..52f5a6157ad05 100644
+index 356131646e..52f5a6157a 100644
 --- a/.gitignore
 +++ b/.gitignore
 @@ -337,3 +337,6 @@ vs-chromium-project.txt
@@ -43,10 +43,10 @@ index 356131646ea9e..52f5a6157ad05 100644
 +# Ignore agregore gateway binary since it's downloaded outside of git
 +third_party/agregore-ipfs-daemon/agregore-ipfs-daemon.aar
 diff --git a/chrome/android/BUILD.gn b/chrome/android/BUILD.gn
-index 7c4472ff63998..935977adaf1d4 100644
+index f31dfaaaf4..a75c19ef61 100644
 --- a/chrome/android/BUILD.gn
 +++ b/chrome/android/BUILD.gn
-@@ -609,6 +609,8 @@ android_library("chrome_java") {
+@@ -631,6 +631,8 @@ android_library("chrome_java") {
      "//third_party/blink/public/mojom:mojom_platform_java",
      "//third_party/gif_player:gif_player_java",
      "//third_party/metrics_proto:metrics_proto_java",
@@ -56,10 +56,10 @@ index 7c4472ff63998..935977adaf1d4 100644
      "//ui/base/mojom:mojom_java",
      "//ui/gfx/geometry/mojom:mojom_java",
 diff --git a/chrome/android/chrome_java_sources.gni b/chrome/android/chrome_java_sources.gni
-index 02df4dd5b9121..0c62bb8104203 100644
+index fd8b67271b..144ce79daa 100644
 --- a/chrome/android/chrome_java_sources.gni
 +++ b/chrome/android/chrome_java_sources.gni
-@@ -1134,4 +1134,6 @@ chrome_java_sources = [
+@@ -1137,4 +1137,6 @@ chrome_java_sources = [
    "java/src/org/chromium/chrome/browser/webapps/launchpad/LaunchpadUtils.java",
    "java/src/org/chromium/chrome/browser/webauth/authenticator/CableAuthenticatorActivity.java",
    "java/src/org/chromium/chrome/browser/webshare/ShareServiceImplementationFactory.java",
@@ -67,7 +67,7 @@ index 02df4dd5b9121..0c62bb8104203 100644
 +  "java/src/moe/mauve/agregore/mobile/IPFSStarter.java",
  ]
 diff --git a/chrome/android/chrome_public_apk_tmpl.gni b/chrome/android/chrome_public_apk_tmpl.gni
-index d6c610e107c5d..abcf0c551fbd0 100644
+index 50d6d66e09..011248d364 100644
 --- a/chrome/android/chrome_public_apk_tmpl.gni
 +++ b/chrome/android/chrome_public_apk_tmpl.gni
 @@ -189,6 +189,16 @@ template("chrome_public_common_apk_or_module_tmpl") {
@@ -88,7 +88,7 @@ index d6c610e107c5d..abcf0c551fbd0 100644
        product_config_java_packages = [ "org.chromium.chrome.browser" ]
      }
 diff --git a/chrome/android/java/AndroidManifest.xml b/chrome/android/java/AndroidManifest.xml
-index f64b00cd6a00d..190a897fdd693 100644
+index c5e9e64823..1278803e28 100644
 --- a/chrome/android/java/AndroidManifest.xml
 +++ b/chrome/android/java/AndroidManifest.xml
 @@ -27,6 +27,9 @@ by a child template that "extends" this file.
@@ -101,7 +101,7 @@ index f64b00cd6a00d..190a897fdd693 100644
      <!--
        Enable runtime permissions as uses-permission in tip of tree builds
        only for ease of development on Android L and earlier. For consumer
-@@ -915,6 +918,14 @@ by a child template that "extends" this file.
+@@ -894,6 +897,14 @@ by a child template that "extends" this file.
              android:exported="false">
          </service>
  
@@ -117,7 +117,7 @@ index f64b00cd6a00d..190a897fdd693 100644
          <receiver
              android:name="org.chromium.chrome.browser.quickactionsearchwidget.QuickActionSearchWidgetProvider$QuickActionSearchWidgetProviderSearch"
 diff --git a/chrome/android/java/AndroidManifest_trichrome_chrome.xml b/chrome/android/java/AndroidManifest_trichrome_chrome.xml
-index 40cdccab4317b..609281c83d972 100644
+index 40cdccab43..609281c83d 100644
 --- a/chrome/android/java/AndroidManifest_trichrome_chrome.xml
 +++ b/chrome/android/java/AndroidManifest_trichrome_chrome.xml
 @@ -9,7 +9,7 @@
@@ -130,7 +130,7 @@ index 40cdccab4317b..609281c83d972 100644
  {% endblock %}
  
 diff --git a/chrome/android/java/res_chromium_base/values/channel_constants.xml b/chrome/android/java/res_chromium_base/values/channel_constants.xml
-index 45e0ea84a3088..2d2ea32b4b707 100644
+index 45e0ea84a3..2d2ea32b4b 100644
 --- a/chrome/android/java/res_chromium_base/values/channel_constants.xml
 +++ b/chrome/android/java/res_chromium_base/values/channel_constants.xml
 @@ -10,4 +10,5 @@
@@ -141,7 +141,7 @@ index 45e0ea84a3088..2d2ea32b4b707 100644
  </resources>
 diff --git a/chrome/android/java/src/moe/mauve/agregore/mobile/IPFSService.java b/chrome/android/java/src/moe/mauve/agregore/mobile/IPFSService.java
 new file mode 100644
-index 0000000000000..a3efe3a500cc1
+index 0000000000..a3efe3a500
 --- /dev/null
 +++ b/chrome/android/java/src/moe/mauve/agregore/mobile/IPFSService.java
 @@ -0,0 +1,152 @@
@@ -299,7 +299,7 @@ index 0000000000000..a3efe3a500cc1
 +}
 diff --git a/chrome/android/java/src/moe/mauve/agregore/mobile/IPFSStarter.java b/chrome/android/java/src/moe/mauve/agregore/mobile/IPFSStarter.java
 new file mode 100644
-index 0000000000000..1e13a955e4f93
+index 0000000000..1e13a955e4
 --- /dev/null
 +++ b/chrome/android/java/src/moe/mauve/agregore/mobile/IPFSStarter.java
 @@ -0,0 +1,94 @@
@@ -398,10 +398,10 @@ index 0000000000000..1e13a955e4f93
 +}
 +
 diff --git a/chrome/android/java/src/org/chromium/chrome/browser/app/ChromeActivity.java b/chrome/android/java/src/org/chromium/chrome/browser/app/ChromeActivity.java
-index 7bab199f3d37e..63f843ca10e12 100644
+index 98043ddb5c..aa0f279dff 100644
 --- a/chrome/android/java/src/org/chromium/chrome/browser/app/ChromeActivity.java
 +++ b/chrome/android/java/src/org/chromium/chrome/browser/app/ChromeActivity.java
-@@ -251,6 +251,8 @@ import java.util.ArrayList;
+@@ -256,6 +256,8 @@ import java.util.ArrayList;
  import java.util.List;
  import java.util.function.Consumer;
  
@@ -410,7 +410,7 @@ index 7bab199f3d37e..63f843ca10e12 100644
  /**
   * A {@link AsyncInitializationActivity} that builds and manages a {@link CompositorViewHolder}
   * and associated classes.
-@@ -392,6 +394,9 @@ public abstract class ChromeActivity<C extends ChromeActivityComponent>
+@@ -398,6 +400,9 @@ public abstract class ChromeActivity<C extends ChromeActivityComponent>
      private boolean mLastPictureInPictureModeForTesting;
      private SubscriptionsManager mSubscriptionsManager;
  
@@ -420,20 +420,21 @@ index 7bab199f3d37e..63f843ca10e12 100644
      protected ChromeActivity() {
          mIntentHandler = new IntentHandler(this, createIntentHandlerDelegate());
          mManualFillingComponentSupplier.set(ManualFillingComponentFactory.createComponent());
-@@ -1287,6 +1292,9 @@ public abstract class ChromeActivity<C extends ChromeActivityComponent>
+@@ -1310,6 +1315,9 @@ public abstract class ChromeActivity<C extends ChromeActivityComponent>
+             RecordHistogram.recordSparseHistogram(
                      "Android.PlayServices.Version", playServicesVersion);
  
-             FontSizePrefs.getInstance().recordUserFontPrefOnStartup();
-+
-+            // Load service and autostart the gateway
++            // Load IPFS service and autostart the gateway
 +            ipfs.loadService(this, true);
++
+             FontSizePrefs.getInstance(Profile.getLastUsedRegularProfile())
+                     .recordUserFontPrefOnStartup();
          });
- 
-         // GSA connection is not needed on low-end devices because Icing is disabled.
-@@ -1541,6 +1549,10 @@ public abstract class ChromeActivity<C extends ChromeActivityComponent>
+@@ -1566,6 +1574,11 @@ public abstract class ChromeActivity<C extends ChromeActivityComponent>
  
          mComponent = null;
  
++        // Unload Agregore IPFS service
 +        if (ipfs.isBound()) {
 +            ipfs.unloadService();
 +        }
@@ -443,7 +444,7 @@ index 7bab199f3d37e..63f843ca10e12 100644
  
 diff --git a/third_party/agregore-ipfs-daemon/BUILD.gn b/third_party/agregore-ipfs-daemon/BUILD.gn
 new file mode 100644
-index 0000000000000..abdac2b60bc9a
+index 0000000000..abdac2b60b
 --- /dev/null
 +++ b/third_party/agregore-ipfs-daemon/BUILD.gn
 @@ -0,0 +1,9 @@
@@ -458,7 +459,7 @@ index 0000000000000..abdac2b60bc9a
 +}
 diff --git a/third_party/agregore-ipfs-daemon/LICENSE b/third_party/agregore-ipfs-daemon/LICENSE
 new file mode 100644
-index 0000000000000..261eeb9e9f8b2
+index 0000000000..261eeb9e9f
 --- /dev/null
 +++ b/third_party/agregore-ipfs-daemon/LICENSE
 @@ -0,0 +1,201 @@
@@ -665,7 +666,7 @@ index 0000000000000..261eeb9e9f8b2
 +   limitations under the License.
 diff --git a/third_party/agregore-ipfs-daemon/OWNERS b/third_party/agregore-ipfs-daemon/OWNERS
 new file mode 100644
-index 0000000000000..08e303b54b1ae
+index 0000000000..08e303b54b
 --- /dev/null
 +++ b/third_party/agregore-ipfs-daemon/OWNERS
 @@ -0,0 +1,2 @@
@@ -673,7 +674,7 @@ index 0000000000000..08e303b54b1ae
 +contact@mauve.moe
 diff --git a/third_party/agregore-ipfs-daemon/README.chromium b/third_party/agregore-ipfs-daemon/README.chromium
 new file mode 100644
-index 0000000000000..41a33408ea49f
+index 0000000000..41a33408ea
 --- /dev/null
 +++ b/third_party/agregore-ipfs-daemon/README.chromium
 @@ -0,0 +1,3 @@
@@ -682,7 +683,7 @@ index 0000000000000..41a33408ea49f
 +Based on https://github.com/AgregoreWeb/agregore-ipfs-daemon
 diff --git a/third_party/agregore-ipfs-daemon/agregore-ipfs-daemon.info b/third_party/agregore-ipfs-daemon/agregore-ipfs-daemon.info
 new file mode 100644
-index 0000000000000..55926c129b48d
+index 0000000000..55926c129b
 --- /dev/null
 +++ b/third_party/agregore-ipfs-daemon/agregore-ipfs-daemon.info
 @@ -0,0 +1,17 @@
@@ -705,7 +706,7 @@ index 0000000000000..55926c129b48d
 +subjars = []
 diff --git a/third_party/agregore-ipfs-daemon/cipd.yaml b/third_party/agregore-ipfs-daemon/cipd.yaml
 new file mode 100644
-index 0000000000000..80bf4ca0ef553
+index 0000000000..80bf4ca0ef
 --- /dev/null
 +++ b/third_party/agregore-ipfs-daemon/cipd.yaml
 @@ -0,0 +1,4 @@
@@ -714,7 +715,7 @@ index 0000000000000..80bf4ca0ef553
 +data:
 +  - file: "agregore-ipfs-gateway.aar"
 diff --git a/third_party/arcore-android-sdk-client/proguard.txt b/third_party/arcore-android-sdk-client/proguard.txt
-index 761eb9511d53d..009269c15bec1 100644
+index 761eb9511d..009269c15b 100644
 --- a/third_party/arcore-android-sdk-client/proguard.txt
 +++ b/third_party/arcore-android-sdk-client/proguard.txt
 @@ -44,4 +44,4 @@

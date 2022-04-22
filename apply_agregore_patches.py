@@ -21,29 +21,28 @@ root = args["root"]
 env = args["env"]
 
 patch_dir = os.path.join(root, 'patches')
+patch_list_file = os.path.join(root, "agregore_patch_order.txt")
 
 print("Applying patches")
-patch_list = os.listdir(patch_dir)
-patch_list.sort()
-
-for patch_name in patch_list:
-    raw_patch_path = os.path.join(patch_dir, patch_name)
-    patch_path = os.path.abspath(raw_patch_path)
-    print(f"Applying patch {patch_name}")
-    result = subprocess.run(
-        f"git am {patch_path}",
-        cwd=chromium,
-        shell=True, check=False,
-        stderr=PIPE, encoding="utf8"
-    )
-    if result.returncode != 0:
-        # If the patch was already applied, skip it. 🤷
-        if 'patch does not apply' in result.stderr:
-            print(f"Patch {patch_name} does not apply, skipping")
-            subprocess.run("git am --skip", cwd=chromium,
-                           shell=True, check=True)
-        else:
-            print(result.stderr)
-            result.check_returncode()
+with open(patch_list_file, 'r', encoding="utf8") as patch_list:
+    for patch_name_raw in patch_list:
+        patch_name = patch_name_raw.strip()
+        raw_patch_path = os.path.join(patch_dir, patch_name)
+        patch_path = os.path.abspath(raw_patch_path)
+        result = subprocess.run(
+            f"git am {patch_path}",
+            cwd=chromium,
+            shell=True, check=False,
+            stderr=PIPE, encoding="utf8"
+        )
+        if result.returncode != 0:
+            # If the patch was already applied, skip it. 🤷
+            if 'patch does not apply' in result.stderr:
+                print(f"Patch {patch_name} does not apply, skipping")
+                subprocess.run("git am --skip", cwd=chromium,
+                               shell=True, check=True)
+            else:
+                print(result.stderr)
+                result.check_returncode()
 
 print("Done!")
