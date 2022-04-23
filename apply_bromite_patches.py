@@ -22,6 +22,7 @@ bromite = args["bromite"]
 root = args["root"]
 build_name = args["build_name"]
 build_path = args["build_path"]
+depot_tools = args["depot_tools"]
 env = args["env"]
 
 bromite_build_folder = os.path.join(bromite, 'build')
@@ -49,6 +50,12 @@ with open(release_file_name, 'r', encoding='utf8') as release_file:
     print(f"Checking out: {checkout_value}")
     to_exec = f"git checkout {checkout_value}"
     subprocess.run(to_exec, cwd=chromium, shell=True, check=True, env=env)
+
+    if not has_commit:
+        out_folder = os.path.join(chromium, build_path)
+        if os.path.exists(out_folder):
+            print("Looks like first time checking out, syncing build tools")
+            subprocess.run('gclient sync -D', cwd=chromium, shell=True, check=True, env=env)
 
 # Copy build/bromite.gn_args to out/Default/args.gn (configurable?) (check if exists?)
 destination_gn_args = os.path.join(chromium, build_path, 'args.gn')
