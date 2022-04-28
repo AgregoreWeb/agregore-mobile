@@ -1,4 +1,4 @@
-From 9e40628103866c7b15b70d321d967b853944179e Mon Sep 17 00:00:00 2001
+From 708f68e87a78359d33f7e6c7a69f23b4cedac8c7 Mon Sep 17 00:00:00 2001
 From: mauve <ranger@mauve.moe>
 Date: Sat, 23 Apr 2022 01:34:51 -0400
 Subject: [PATCH] AG Wifi Auto Connect
@@ -570,7 +570,7 @@ index 0000000000..dcb0448ccb
 +https://github.com/RangerMauve/WifiAutoConnect-Android
 diff --git a/third_party/wifi_autoconnect/WifiAutoConnect.info b/third_party/wifi_autoconnect/WifiAutoConnect.info
 new file mode 100644
-index 0000000000..18089ec31d
+index 0000000000..0c1a5726f6
 --- /dev/null
 +++ b/third_party/wifi_autoconnect/WifiAutoConnect.info
 @@ -0,0 +1,14 @@
@@ -583,7 +583,7 @@ index 0000000000..18089ec31d
 +has_native_libraries = false
 +has_proguard_flags = true
 +has_r_text_file = false
-+is_manifest_empty = true
++is_manifest_empty = false
 +manifest_package = "moe.mauve.agregore.wifiautoconnect"
 +resources = []
 +subjar_tuples = []
