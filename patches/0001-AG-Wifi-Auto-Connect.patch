@@ -1,4 +1,4 @@
-From 708f68e87a78359d33f7e6c7a69f23b4cedac8c7 Mon Sep 17 00:00:00 2001
+From f46c9afae7dd6c2790a4a42f34eb7e9f146d24f5 Mon Sep 17 00:00:00 2001
 From: mauve <ranger@mauve.moe>
 Date: Sat, 23 Apr 2022 01:34:51 -0400
 Subject: [PATCH] AG Wifi Auto Connect
@@ -230,7 +230,7 @@ index 699bd11bf1..1c4ac4d607 100644
              if (ChromeFeatureList.isEnabled(ChromeFeatureList.CLOSE_ALL_TABS_MODAL_DIALOG)) {
                  CloseAllTabsDialog.show(this, getModalDialogManagerSupplier(),
 diff --git a/chrome/android/java/src/org/chromium/chrome/browser/app/ChromeActivity.java b/chrome/android/java/src/org/chromium/chrome/browser/app/ChromeActivity.java
-index aa0f279dff..4c8eebd785 100644
+index aa0f279dff..b8030fd8db 100644
 --- a/chrome/android/java/src/org/chromium/chrome/browser/app/ChromeActivity.java
 +++ b/chrome/android/java/src/org/chromium/chrome/browser/app/ChromeActivity.java
 @@ -257,6 +257,7 @@ import java.util.List;
@@ -281,7 +281,7 @@ index aa0f279dff..4c8eebd785 100644
          if (tab != null) getTabContentManager().cacheTabThumbnail(tab);
          getManualFillingComponent().onPause();
  
-+        wifiAutoConnect.onPause()
++        wifiAutoConnect.onPause();
 +
          VrModuleProvider.getDelegate().maybeUnregisterVrEntryHook();
          markSessionEnd();
@@ -309,7 +309,7 @@ index aa0f279dff..4c8eebd785 100644
              ipfs.unloadService();
          }
 +        // Disconnect and destroy wifi access point if one exists
-+        if (wifiAutoConnect !== null) {
++        if (wifiAutoConnect != null) {
 +            disconnectWifi();
 +        }
  
