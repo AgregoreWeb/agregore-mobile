@@ -1,4 +1,4 @@
-From 07f908ac5981f873603dc639ea3e39c2cfd6e331 Mon Sep 17 00:00:00 2001
+From 97a487b7497190aff8809f604f81c70c53d19ff2 Mon Sep 17 00:00:00 2001
 From: mauve <ranger@mauve.moe>
 Date: Sat, 23 Apr 2022 01:34:51 -0400
 Subject: [PATCH] AG Wifi Auto Connect
@@ -44,7 +44,7 @@ index 52f5a6157a..de6fe1c969 100644
 +# Ignore wifi_autoconnect binary since it's downloaded outside of git
 +third_party/wifi_autoconnect/WifiAutoConnect.aar
 diff --git a/chrome/android/BUILD.gn b/chrome/android/BUILD.gn
-index a75c19ef61..12ce5aff38 100644
+index a75c19ef61..4a071c9127 100644
 --- a/chrome/android/BUILD.gn
 +++ b/chrome/android/BUILD.gn
 @@ -631,8 +631,9 @@ android_library("chrome_java") {
@@ -54,7 +54,7 @@ index a75c19ef61..12ce5aff38 100644
 -    # Add Agregore IPFS gateway to chrome deps
 +    # Add Agregore IPFS gateway and WifiAutoConnect to chrome deps
      "//third_party/agregore-ipfs-daemon:agregore_ipfs_daemon_java",
-+    "//third_party/wifi_autoconnect/wifi_auto_connect_java",
++    "//third_party/wifi_autoconnect:wifi_auto_connect_java",
      "//ui/android:ui_java",
      "//ui/base/mojom:mojom_java",
      "//ui/gfx/geometry/mojom:mojom_java",
@@ -876,5 +876,5 @@ index 0000000000..d209c96027
 +data:
 +  - file: "WifiAutoConnect.aar"
 -- 
-2.32.0
+2.34.1
 
