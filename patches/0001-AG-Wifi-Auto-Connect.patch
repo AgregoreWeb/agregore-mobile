@@ -1,4 +1,4 @@
-From f46c9afae7dd6c2790a4a42f34eb7e9f146d24f5 Mon Sep 17 00:00:00 2001
+From 7796b549e0bdf72a9f0740c1c9952686b9884c64 Mon Sep 17 00:00:00 2001
 From: mauve <ranger@mauve.moe>
 Date: Sat, 23 Apr 2022 01:34:51 -0400
 Subject: [PATCH] AG Wifi Auto Connect
@@ -135,7 +135,7 @@ index 2e820d1d31..1c773afae2 100644
              android:title="@string/menu_update"
              android:icon="@drawable/menu_update" />
 diff --git a/chrome/android/java/src/moe/mauve/agregore/mobile/IPFSService.java b/chrome/android/java/src/moe/mauve/agregore/mobile/IPFSService.java
-index a3efe3a500..2dab7a4230 100644
+index a3efe3a500..1c82eaaf2a 100644
 --- a/chrome/android/java/src/moe/mauve/agregore/mobile/IPFSService.java
 +++ b/chrome/android/java/src/moe/mauve/agregore/mobile/IPFSService.java
 @@ -31,6 +31,7 @@ public class IPFSService extends Service implements Handler.Callback {
@@ -150,7 +150,7 @@ index a3efe3a500..2dab7a4230 100644
  		} else if(what == STOP) {
  				stopProcess();
  				return true;
-+		} else if(what = RESTART) {
++		} else if(what == RESTART) {
 +			if(isRunning()) {
 +				stopProcess();
 +			}
