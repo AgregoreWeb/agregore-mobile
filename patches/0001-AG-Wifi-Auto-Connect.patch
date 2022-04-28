@@ -1,4 +1,4 @@
-From 5ea4be7afc3912882d689ccd1b22a4358d2d919c Mon Sep 17 00:00:00 2001
+From 9e40628103866c7b15b70d321d967b853944179e Mon Sep 17 00:00:00 2001
 From: mauve <ranger@mauve.moe>
 Date: Sat, 23 Apr 2022 01:34:51 -0400
 Subject: [PATCH] AG Wifi Auto Connect
@@ -316,14 +316,14 @@ index aa0f279dff..4c8eebd785 100644
          super.onDestroy();
      }
 diff --git a/chrome/browser/ui/android/strings/android_chrome_strings.grd b/chrome/browser/ui/android/strings/android_chrome_strings.grd
-index e2a5bc0966..36d01e0a13 100644
+index e2a5bc0966..6cdaddbe32 100644
 --- a/chrome/browser/ui/android/strings/android_chrome_strings.grd
 +++ b/chrome/browser/ui/android/strings/android_chrome_strings.grd
 @@ -3461,6 +3461,9 @@ To change this setting, <ph name="BEGIN_LINK">&lt;resetlink&gt;</ph>reset sync<p
        <message name="IDS_MENU_BOOKMARK_ALL_TABS" desc="Menu item to bookmark all tabs. [CHAR-LIMIT=27]">
          Bookmark all tabs
        </message>
-+      <message name="IDS_MENU_AUTO_CONNECT" desc="Menu item to automatically connect to nearby devices. [CHAR-LIMIT=27]>
++      <message name="IDS_MENU_AUTO_CONNECT" desc="Menu item to automatically connect to nearby devices. [CHAR-LIMIT=27]">
 +        Auto-connect nearby devices
 +      </message>
        <message name="IDS_MENU_GET_IMAGE_DESCRIPTIONS" desc="Menu item to start getting alt text accessibility image labels/descriptions [CHAR_LIMIT=27]">
