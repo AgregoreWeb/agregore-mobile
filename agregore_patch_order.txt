@@ -1,4 +1,3 @@
-0001-AG-Fix-unhandled_tap_notifier-build-error.patch
 0001-AG-Rebrand-to-Agregore.patch
 0001-AG-IPFS-Daemon.patch
 0001-AG-Handle-IPFS-and-IPNS-URLs.patch
