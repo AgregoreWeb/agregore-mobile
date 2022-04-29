@@ -1,4 +1,4 @@
-From 7796b549e0bdf72a9f0740c1c9952686b9884c64 Mon Sep 17 00:00:00 2001
+From 03911cdb92b66b0caf5a53932fec2f601f39a910 Mon Sep 17 00:00:00 2001
 From: mauve <ranger@mauve.moe>
 Date: Sat, 23 Apr 2022 01:34:51 -0400
 Subject: [PATCH] AG Wifi Auto Connect
@@ -121,7 +121,7 @@ index 0000000000..39f33575c2
 +        android:strokeWidth="1"/>
 +</vector>
 diff --git a/chrome/android/java/res/menu/main_menu.xml b/chrome/android/java/res/menu/main_menu.xml
-index 2e820d1d31..1c773afae2 100644
+index 2e820d1d31..1b4c0c99ae 100644
 --- a/chrome/android/java/res/menu/main_menu.xml
 +++ b/chrome/android/java/res/menu/main_menu.xml
 @@ -35,6 +35,9 @@
@@ -129,7 +129,7 @@ index 2e820d1d31..1c773afae2 100644
              </menu>
          </item>
 +        <item android:id="@+id/wifi_auto_connect_id"
-+            android:title="@string/wifi_auto_connect"
++            android:title="@string/menu_wifi_auto_connect"
 +            android:icon="@drawable/wifi_auto_connect" />
          <item android:id="@+id/update_menu_id"
              android:title="@string/menu_update"
@@ -316,14 +316,14 @@ index aa0f279dff..b8030fd8db 100644
          super.onDestroy();
      }
 diff --git a/chrome/browser/ui/android/strings/android_chrome_strings.grd b/chrome/browser/ui/android/strings/android_chrome_strings.grd
-index e2a5bc0966..6cdaddbe32 100644
+index e2a5bc0966..a256015dd4 100644
 --- a/chrome/browser/ui/android/strings/android_chrome_strings.grd
 +++ b/chrome/browser/ui/android/strings/android_chrome_strings.grd
 @@ -3461,6 +3461,9 @@ To change this setting, <ph name="BEGIN_LINK">&lt;resetlink&gt;</ph>reset sync<p
        <message name="IDS_MENU_BOOKMARK_ALL_TABS" desc="Menu item to bookmark all tabs. [CHAR-LIMIT=27]">
          Bookmark all tabs
        </message>
-+      <message name="IDS_MENU_AUTO_CONNECT" desc="Menu item to automatically connect to nearby devices. [CHAR-LIMIT=27]">
++      <message name="IDS_MENU_WIFI_AUTO_CONNECT" desc="Menu item to automatically connect to nearby devices. [CHAR-LIMIT=27]">
 +        Auto-connect nearby devices
 +      </message>
        <message name="IDS_MENU_GET_IMAGE_DESCRIPTIONS" desc="Menu item to start getting alt text accessibility image labels/descriptions [CHAR_LIMIT=27]">
