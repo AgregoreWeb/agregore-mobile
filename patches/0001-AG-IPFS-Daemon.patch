@@ -1,4 +1,4 @@
-From e73c032e90e865d33f65639f065731217b33013d Mon Sep 17 00:00:00 2001
+From 70e57e86b198378b947e592ada87ebf0e2793d28 Mon Sep 17 00:00:00 2001
 From: mauve <ranger@mauve.moe>
 Date: Thu, 24 Mar 2022 18:30:30 -0400
 Subject: [PATCH] AG IPFS Daemon
@@ -14,6 +14,7 @@ Subject: [PATCH] AG IPFS Daemon
  .../mauve/agregore/mobile/IPFSService.java    | 152 +++++++++++++
  .../mauve/agregore/mobile/IPFSStarter.java    |  94 ++++++++
  .../chrome/browser/app/ChromeActivity.java    |  13 ++
+ chrome/android/trichrome.gni                  |  10 +
  third_party/agregore-ipfs-daemon/BUILD.gn     |   9 +
  third_party/agregore-ipfs-daemon/LICENSE      | 201 ++++++++++++++++++
  third_party/agregore-ipfs-daemon/OWNERS       |   2 +
@@ -21,7 +22,7 @@ Subject: [PATCH] AG IPFS Daemon
  .../agregore-ipfs-daemon.info                 |  17 ++
  third_party/agregore-ipfs-daemon/cipd.yaml    |   4 +
  .../arcore-android-sdk-client/proguard.txt    |   2 +-
- 17 files changed, 526 insertions(+), 2 deletions(-)
+ 18 files changed, 536 insertions(+), 2 deletions(-)
  create mode 100644 chrome/android/java/src/moe/mauve/agregore/mobile/IPFSService.java
  create mode 100644 chrome/android/java/src/moe/mauve/agregore/mobile/IPFSStarter.java
  create mode 100644 third_party/agregore-ipfs-daemon/BUILD.gn
@@ -442,6 +443,27 @@ index 98043ddb5c..aa0f279dff 100644
          super.onDestroy();
      }
  
+diff --git a/chrome/android/trichrome.gni b/chrome/android/trichrome.gni
+index c3b67bc38a..71ceab5f79 100644
+--- a/chrome/android/trichrome.gni
++++ b/chrome/android/trichrome.gni
+@@ -126,6 +126,16 @@ template("trichrome_library_apk_tmpl") {
+       "//third_party/icu:icu_assets",
+     ]
+ 
++    # Agregore resources
++    deps += [ "//third_party/agregore-ipfs-daemon:agregore_ipfs_daemon_java" ]
++    if (!defined(loadable_modules)) {
++      loadable_modules = []
++    }
++    _agregore_ipfs_daemon_dir = get_label_info(
++                             "//third_party/agregore-ipfs-daemon:agregore_ipfs_daemon_java($default_toolchain)",
++                             "target_out_dir") + "/agregore_ipfs_daemon_java/jni"
++    loadable_modules += [ "$_agregore_ipfs_daemon_dir/armeabi-v7a/libgojni.so" ]
++
+     # Flag whether additional deps and libs should be included for each ABI.
+     _include_primary_support = false
+     _include_secondary_support = false
 diff --git a/third_party/agregore-ipfs-daemon/BUILD.gn b/third_party/agregore-ipfs-daemon/BUILD.gn
 new file mode 100644
 index 0000000000..abdac2b60b
@@ -726,5 +748,5 @@ index 761eb9511d..009269c15b 100644
 \ No newline at end of file
 +}
 -- 
-2.32.0
+2.34.1
 
