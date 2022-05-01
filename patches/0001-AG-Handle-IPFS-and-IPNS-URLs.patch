@@ -1,4 +1,4 @@
-From 1b38e6c3b61eee98df71b00e123d111fa7c54fb9 Mon Sep 17 00:00:00 2001
+From b1610eac50264a1d5f60b3a32010d5723924dd02 Mon Sep 17 00:00:00 2001
 From: Madrets <emmanuel.elite.46@gmail.com>
 Date: Thu, 21 Apr 2022 10:44:57 -0400
 Subject: [PATCH 1/1] AG Handle IPFS and IPNS URLs
@@ -80,7 +80,7 @@ index e59440185a5fe..b40ab7fde653f 100644
    url::kFileSystemScheme,
    kChromeDevToolsScheme,
 diff --git a/net/url_request/url_request_http_job.cc b/net/url_request/url_request_http_job.cc
-index cab1847df6fa7..b59eb3e8f33e6 100644
+index cab1847df6fa7..02842ffeab7ac 100644
 --- a/net/url_request/url_request_http_job.cc
 +++ b/net/url_request/url_request_http_job.cc
 @@ -10,6 +10,8 @@
@@ -116,7 +116,7 @@ index cab1847df6fa7..b59eb3e8f33e6 100644
 +    new_url = new_url.ReplaceComponents(replacements);
 +    
 +    std::vector<GURL> url_chain;
-+    url_chain->push_back(new_url);
++    url_chain.push_back(new_url);
 +    request->SetURLChain(url_chain);
 +    return URLRequestHttpJob::Create(request);
 +  }
