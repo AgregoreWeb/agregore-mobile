@@ -1,18 +1,18 @@
-From 5e309591ee986ad56117add3b51b9023ebd15346 Mon Sep 17 00:00:00 2001
+From 1b38e6c3b61eee98df71b00e123d111fa7c54fb9 Mon Sep 17 00:00:00 2001
 From: Madrets <emmanuel.elite.46@gmail.com>
 Date: Thu, 21 Apr 2022 10:44:57 -0400
 Subject: [PATCH 1/1] AG Handle IPFS and IPNS URLs
 
 ---
- chrome/browser/browser_about_handler.cc    | 25 +++++++++++++++++--
+ chrome/browser/browser_about_handler.cc    | 25 ++++++++++++++++++--
  chrome/browser/profiles/profile_io_data.cc |  2 ++
  content/common/url_schemes.cc              |  2 ++
- net/url_request/url_request_http_job.cc    | 28 ++++++++++++++++++++++
+ net/url_request/url_request_http_job.cc    | 27 ++++++++++++++++++++++
  net/url_request/url_request_job_factory.cc |  4 ++++
  url/url_constants.cc                       |  4 ++++
  url/url_constants.h                        |  4 ++++
  url/url_util.cc                            |  7 ++++++
- 8 files changed, 74 insertions(+), 2 deletions(-)
+ 8 files changed, 73 insertions(+), 2 deletions(-)
 
 diff --git a/chrome/browser/browser_about_handler.cc b/chrome/browser/browser_about_handler.cc
 index 9e534ff1683f1..e4d1430892548 100644
@@ -80,7 +80,7 @@ index e59440185a5fe..b40ab7fde653f 100644
    url::kFileSystemScheme,
    kChromeDevToolsScheme,
 diff --git a/net/url_request/url_request_http_job.cc b/net/url_request/url_request_http_job.cc
-index cab1847df6fa7..ad83cda3d32db 100644
+index cab1847df6fa7..b59eb3e8f33e6 100644
 --- a/net/url_request/url_request_http_job.cc
 +++ b/net/url_request/url_request_http_job.cc
 @@ -10,6 +10,8 @@
@@ -92,7 +92,7 @@ index cab1847df6fa7..ad83cda3d32db 100644
  #include "base/base_switches.h"
  #include "base/bind.h"
  #include "base/callback_helpers.h"
-@@ -189,6 +191,32 @@ namespace net {
+@@ -189,6 +191,31 @@ namespace net {
  std::unique_ptr<URLRequestJob> URLRequestHttpJob::Create(URLRequest* request) {
    const GURL& url = request->url();
  
@@ -106,17 +106,16 @@ index cab1847df6fa7..ad83cda3d32db 100644
 +    const char* newPath = tempPath.c_str();
 +    const char newHost[] = "localhost";
 +    const char newPort[] = "8080";
-+    GURL temp_url = url;
-+    GURL* new_url = &temp_url;
++    GURL new_url = url;
 +
 +    GURL::Replacements replacements;
 +    replacements.SetSchemeStr(url::kHttpScheme);
 +    replacements.SetHostStr(newHost);
 +    replacements.SetPortStr(newPort);
 +    replacements.SetPathStr(newPath);
-+    *new_url = new_url->ReplaceComponents(replacements);
++    new_url = new_url.ReplaceComponents(replacements);
 +    
-+    std::vector<GURL>& url_chain;
++    std::vector<GURL> url_chain;
 +    url_chain->push_back(new_url);
 +    request->SetURLChain(url_chain);
 +    return URLRequestHttpJob::Create(request);
