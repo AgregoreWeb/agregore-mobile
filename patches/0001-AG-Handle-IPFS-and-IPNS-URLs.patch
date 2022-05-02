@@ -1,18 +1,18 @@
-From 70b960b79e8d74a79af5872a8dd048dce3469575 Mon Sep 17 00:00:00 2001
+From 9876bc94cff3c5010bf9ac89265603e1a6a6f2c4 Mon Sep 17 00:00:00 2001
 From: Madrets <emmanuel.elite.46@gmail.com>
 Date: Thu, 21 Apr 2022 10:44:57 -0400
 Subject: [PATCH] AG Handle IPFS and IPNS URLs
 
 ---
- chrome/browser/browser_about_handler.cc    | 25 ++++++++++++++++++--
+ chrome/browser/browser_about_handler.cc    | 25 +++++++++++++++++--
  chrome/browser/profiles/profile_io_data.cc |  2 ++
  content/common/url_schemes.cc              |  2 ++
- net/url_request/url_request_http_job.cc    | 27 ++++++++++++++++++++++
+ net/url_request/url_request_http_job.cc    | 28 ++++++++++++++++++++++
  net/url_request/url_request_job_factory.cc |  4 ++++
  url/url_constants.cc                       |  4 ++++
  url/url_constants.h                        |  4 ++++
  url/url_util.cc                            |  7 ++++++
- 8 files changed, 73 insertions(+), 2 deletions(-)
+ 8 files changed, 74 insertions(+), 2 deletions(-)
 
 diff --git a/chrome/browser/browser_about_handler.cc b/chrome/browser/browser_about_handler.cc
 index 9e534ff1683f1..e4d1430892548 100644
@@ -80,7 +80,7 @@ index e59440185a5fe..b40ab7fde653f 100644
    url::kFileSystemScheme,
    kChromeDevToolsScheme,
 diff --git a/net/url_request/url_request_http_job.cc b/net/url_request/url_request_http_job.cc
-index 79cb00785421a..9e74fecb1f590 100644
+index 79cb00785421a..1f8e050234d22 100644
 --- a/net/url_request/url_request_http_job.cc
 +++ b/net/url_request/url_request_http_job.cc
 @@ -10,6 +10,8 @@
@@ -92,14 +92,14 @@ index 79cb00785421a..9e74fecb1f590 100644
  #include "base/base_switches.h"
  #include "base/bind.h"
  #include "base/callback_helpers.h"
-@@ -191,6 +193,31 @@ namespace net {
+@@ -191,6 +193,32 @@ namespace net {
  std::unique_ptr<URLRequestJob> URLRequestHttpJob::Create(URLRequest* request) {
    const GURL& url = request->url();
  
 +  // Handle ipfs and ipns URLs
-+  std::string scheme(url->scheme());
-+  std::string host(url->host());
-+  std::string path(url->path());
++  std::string scheme(url.scheme());
++  std::string host(url.host());
++  std::string path(url.path());
 +
 +  if (scheme == url::kIpfsScheme || scheme == url::kIpnsScheme) {
 +    std::string tempPath = "/" + scheme + "/" + host + path;
@@ -120,6 +120,7 @@ index 79cb00785421a..9e74fecb1f590 100644
 +    request->SetURLChain(url_chain);
 +    return URLRequestHttpJob::Create(request);
 +  }
++
 +
    // URLRequestContext must have been initialized.
    DCHECK(request->context()->http_transaction_factory());
