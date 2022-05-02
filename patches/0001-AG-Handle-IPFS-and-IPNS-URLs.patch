@@ -1,7 +1,7 @@
-From b1610eac50264a1d5f60b3a32010d5723924dd02 Mon Sep 17 00:00:00 2001
+From 70b960b79e8d74a79af5872a8dd048dce3469575 Mon Sep 17 00:00:00 2001
 From: Madrets <emmanuel.elite.46@gmail.com>
 Date: Thu, 21 Apr 2022 10:44:57 -0400
-Subject: [PATCH 1/1] AG Handle IPFS and IPNS URLs
+Subject: [PATCH] AG Handle IPFS and IPNS URLs
 
 ---
  chrome/browser/browser_about_handler.cc    | 25 ++++++++++++++++++--
@@ -80,7 +80,7 @@ index e59440185a5fe..b40ab7fde653f 100644
    url::kFileSystemScheme,
    kChromeDevToolsScheme,
 diff --git a/net/url_request/url_request_http_job.cc b/net/url_request/url_request_http_job.cc
-index cab1847df6fa7..02842ffeab7ac 100644
+index 79cb00785421a..9e74fecb1f590 100644
 --- a/net/url_request/url_request_http_job.cc
 +++ b/net/url_request/url_request_http_job.cc
 @@ -10,6 +10,8 @@
@@ -92,7 +92,7 @@ index cab1847df6fa7..02842ffeab7ac 100644
  #include "base/base_switches.h"
  #include "base/bind.h"
  #include "base/callback_helpers.h"
-@@ -189,6 +191,31 @@ namespace net {
+@@ -191,6 +193,31 @@ namespace net {
  std::unique_ptr<URLRequestJob> URLRequestHttpJob::Create(URLRequest* request) {
    const GURL& url = request->url();
  
@@ -125,7 +125,7 @@ index cab1847df6fa7..02842ffeab7ac 100644
    DCHECK(request->context()->http_transaction_factory());
    DCHECK(url.SchemeIsHTTPOrHTTPS() || url.SchemeIsWSOrWSS());
 diff --git a/net/url_request/url_request_job_factory.cc b/net/url_request/url_request_job_factory.cc
-index 079187d608d69..6618c6efe0b0d 100644
+index 079187d608d69..c89024828721c 100644
 --- a/net/url_request/url_request_job_factory.cc
 +++ b/net/url_request/url_request_job_factory.cc
 @@ -60,6 +60,10 @@ URLRequestJobFactory::URLRequestJobFactory() {
@@ -133,9 +133,9 @@ index 079187d608d69..6618c6efe0b0d 100644
    SetProtocolHandler(url::kHttpsScheme, std::make_unique<HttpProtocolHandler>(
                                              /*is_for_websockets=*/false));
 +  SetProtocolHandler(url::kIpfsScheme, std::make_unique<HttpProtocolHandler>(
-+			                   /*is_for_websockets=*/false));
++                                         /*is_for_websockets=*/false));
 +  SetProtocolHandler(url::kIpnsScheme, std::make_unique<HttpProtocolHandler>(
-+                                           /*is_for_websockets=*/false));
++                                         /*is_for_websockets=*/false));  
  #if BUILDFLAG(ENABLE_WEBSOCKETS)
    SetProtocolHandler(url::kWsScheme, std::make_unique<HttpProtocolHandler>(
                                           /*is_for_websockets=*/true));
