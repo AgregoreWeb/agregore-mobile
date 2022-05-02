@@ -51,6 +51,17 @@ bromite_repo = args["bromite_repo"]
 
 bromite_build_folder = os.path.join(bromite, 'build')
 
+# Set up ./bromite if it doesn't exist
+if not os.path.exists(bromite):
+    print('Cloning bromite repo')
+    subprocess.run(f'git clone {bromite_repo}',
+                   cwd=root, shell=True, check=True)
+    bromite_checkout_script = os.path.join(root, 'checkout_bromite_tag.py')
+    subprocess.run(bromite_checkout_script, cwd=root, shell=True, check=True)
+else:
+    print("Skipping bromite directory, already exists")
+
+
 # Set up ./depot_tools if it doesn't exist
 if not os.path.exists(depot_tools):
     print('Cloning depot_tools')
@@ -58,11 +69,12 @@ if not os.path.exists(depot_tools):
                    cwd=root, shell=True, check=True)
 else:
     print("Skipping depot_tools, already exists")
+
 # Set up ./chromium/src if it doesn't exist
 if not os.path.exists(chromium_root):
     print("Fetching chromium source")
     os.makedirs(chromium_root)
-    subprocess.run('fetch --nohooks android',
+    subprocess.run('fetch --nohooks --no-history android',
                    cwd=chromium_root, shell=True, check=True, env=env)
     if build:
         print('Installing build dependencies')
@@ -85,16 +97,9 @@ if build and not os.path.exists(os.path.join(chromium, build_path)):
         input=GN_ARGS, cwd=chromium_root, shell=True, check=True, env=env)
 else:
     print("Skipping chromium output directory, exists or not building")
-# Set up ./bromite if it doesn't exist
-if not os.path.exists(bromite):
-    print('Cloning bromite repo')
-    subprocess.run(f'git clone {bromite_repo}',
-                   cwd=root, shell=True, check=True)
-else:
-    print("Skipping bromite directory, already exists")
 
 print("Running Bromite Patch Script")
-bromite_patch_script = os.path.join(root, 'patch_with_bromite.py')
+bromite_patch_script = os.path.join(root, 'apply_bromite_patches.py')
 subprocess.run(bromite_patch_script, cwd=root, shell=True, check=True)
 
 print("Running Agregore Patch Script")

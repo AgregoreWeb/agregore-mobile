@@ -14,8 +14,16 @@ parser = argparse.ArgumentParser(
     description='Download the IPFS daemon AAR file'
 )
 
-# TODO: Use specific tag once we have a stable release
-DEFAULT_VERSION = "latest"
+daemon_tag_file_path = os.path.normpath(os.path.join(
+    os.path.realpath(__file__),
+    "../daemon_tag.txt"
+))
+
+DEFAULT_VERSION = ""
+
+with open(daemon_tag_file_path, "r", encoding="utf8") as daemon_tag_file:
+    DEFAULT_VERSION = daemon_tag_file.read().strip()
+
 DEFAULT_REPO = 'AgregoreWeb/agregore-ipfs-daemon'
 DEFAULT_BINARY_NAME = 'agregore-ipfs-daemon.aar'
 
@@ -46,11 +54,14 @@ version = args["version"]
 repo = args["repo"]
 binary_name = args["binary_name"]
 
-url = f"https://github.com/{repo}/releases/{version}/download/{binary_name}"
+url = f"https://github.com/{repo}/releases/download/{version}/{binary_name}"
 
 print(f"Downloading {url}")
 
 response = requests.get(url, allow_redirects=True, stream=True)
+
+# Raise an exception if we get a 404
+response.raise_for_status()
 
 download_location = os.path.join(
     chromium,
