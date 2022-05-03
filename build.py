@@ -20,7 +20,7 @@ depot_tools = args["depot_tools"]
 env = args["env"]
 
 print(f"Building {build_name}")
-to_run = f'autoninja -C {build_path} trichrome_chrome_bundle'
+to_run = f'autoninja -C {build_path} chrome_public_apk'
 subprocess.run(to_run, cwd=chromium, shell=True, check=True, env=env)
 
 print("Done!")
