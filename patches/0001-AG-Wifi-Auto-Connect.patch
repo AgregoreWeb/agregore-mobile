@@ -1,4 +1,4 @@
-From bb4642ce6682274d16bb5a1c6388403da46f98df Mon Sep 17 00:00:00 2001
+From aac1f52320597451852d67597df62207d8464303 Mon Sep 17 00:00:00 2001
 From: mauve <ranger@mauve.moe>
 Date: Sat, 23 Apr 2022 01:34:51 -0400
 Subject: [PATCH] AG Wifi Auto Connect
@@ -14,7 +14,7 @@ Subject: [PATCH] AG Wifi Auto Connect
  chrome/android/java/res/menu/main_menu.xml    |   3 +
  .../mauve/agregore/mobile/IPFSService.java    |   7 +
  .../mauve/agregore/mobile/IPFSStarter.java    |   4 +
- .../chrome/browser/ChromeTabbedActivity.java  |  23 ++
+ .../chrome/browser/ChromeTabbedActivity.java  |  28 +++
  .../chrome/browser/app/ChromeActivity.java    |  39 ++++
  .../strings/android_chrome_strings.grd        |   3 +
  third_party/wifi_autoconnect/BUILD.gn         |   9 +
@@ -23,7 +23,7 @@ Subject: [PATCH] AG Wifi Auto Connect
  third_party/wifi_autoconnect/README.chromium  |   3 +
  .../wifi_autoconnect/WifiAutoConnect.info     |  14 ++
  third_party/wifi_autoconnect/cipd.yaml        |   4 +
- 19 files changed, 341 insertions(+), 3 deletions(-)
+ 19 files changed, 346 insertions(+), 3 deletions(-)
  create mode 100644 chrome/android/java/res/drawable/wifi_auto_connect.xml
  create mode 100644 third_party/wifi_autoconnect/BUILD.gn
  create mode 100644 third_party/wifi_autoconnect/LICENSE
@@ -189,7 +189,7 @@ index 1e13a955e4..a9bf3ca01e 100644
  		loadService(binder, false);
  	}
 diff --git a/chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java b/chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java
-index 699bd11bf1..1c4ac4d607 100644
+index 699bd11bf1..a75872ed6a 100644
 --- a/chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java
 +++ b/chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java
 @@ -19,6 +19,7 @@ import android.util.Pair;
@@ -209,13 +209,18 @@ index 699bd11bf1..1c4ac4d607 100644
  import org.chromium.chrome.browser.ApplicationLifetime;
  
  /**
-@@ -2023,6 +2026,20 @@ public class ChromeTabbedActivity extends ChromeActivity<ChromeActivityComponent
+@@ -2023,6 +2026,25 @@ public class ChromeTabbedActivity extends ChromeActivity<ChromeActivityComponent
          getTabModelSelector().getModel(true).closeAllTabs();
      }
  
 +    @Override
 +    public void onWifiAutoConnectStateChange(int state) {
 +        MenuItem item = (MenuItem) findViewById(R.id.new_tab_menu_id);
++        if(item == null) {
++          // Menu must not be open?
++          // TODO: Set the initial state on menu open
++          return;
++        }
 +        if(state == WifiAutoConnect.STATE_CONNECTING) {
 +            item.setTitle("Connecting...");
 +        } else if(state == WifiAutoConnect.STATE_CONNECTED) {
@@ -230,7 +235,7 @@ index 699bd11bf1..1c4ac4d607 100644
      @Override
      public boolean onMenuOrKeyboardAction(final int id, boolean fromMenu) {
          final Tab currentTab = getActivityTab();
-@@ -2104,6 +2121,12 @@ public class ChromeTabbedActivity extends ChromeActivity<ChromeActivityComponent
+@@ -2104,6 +2126,12 @@ public class ChromeTabbedActivity extends ChromeActivity<ChromeActivityComponent
              RecordUserAction.record("MobileTabClosed");
          } else if (id == R.id.exit_id) {
              ApplicationLifetime.terminate(false);
