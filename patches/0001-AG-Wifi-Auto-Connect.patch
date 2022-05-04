@@ -1,4 +1,4 @@
-From 03911cdb92b66b0caf5a53932fec2f601f39a910 Mon Sep 17 00:00:00 2001
+From f089d0d7893511ee1849c2c905f70243c33764ca Mon Sep 17 00:00:00 2001
 From: mauve <ranger@mauve.moe>
 Date: Sat, 23 Apr 2022 01:34:51 -0400
 Subject: [PATCH] AG Wifi Auto Connect
@@ -14,7 +14,7 @@ Subject: [PATCH] AG Wifi Auto Connect
  .../mauve/agregore/mobile/IPFSService.java    |   7 +
  .../mauve/agregore/mobile/IPFSStarter.java    |   4 +
  .../chrome/browser/ChromeTabbedActivity.java  |  23 ++
- .../chrome/browser/app/ChromeActivity.java    |  34 +++
+ .../chrome/browser/app/ChromeActivity.java    |  39 ++++
  .../strings/android_chrome_strings.grd        |   3 +
  third_party/wifi_autoconnect/BUILD.gn         |   9 +
  third_party/wifi_autoconnect/LICENSE          | 201 ++++++++++++++++++
@@ -22,7 +22,7 @@ Subject: [PATCH] AG Wifi Auto Connect
  third_party/wifi_autoconnect/README.chromium  |   3 +
  .../wifi_autoconnect/WifiAutoConnect.info     |  14 ++
  third_party/wifi_autoconnect/cipd.yaml        |   4 +
- 18 files changed, 335 insertions(+), 2 deletions(-)
+ 18 files changed, 340 insertions(+), 2 deletions(-)
  create mode 100644 chrome/android/java/res/drawable/wifi_auto_connect.xml
  create mode 100644 third_party/wifi_autoconnect/BUILD.gn
  create mode 100644 third_party/wifi_autoconnect/LICENSE
@@ -230,7 +230,7 @@ index 699bd11bf1..1c4ac4d607 100644
              if (ChromeFeatureList.isEnabled(ChromeFeatureList.CLOSE_ALL_TABS_MODAL_DIALOG)) {
                  CloseAllTabsDialog.show(this, getModalDialogManagerSupplier(),
 diff --git a/chrome/android/java/src/org/chromium/chrome/browser/app/ChromeActivity.java b/chrome/android/java/src/org/chromium/chrome/browser/app/ChromeActivity.java
-index aa0f279dff..b8030fd8db 100644
+index aa0f279dff..39d61d6f93 100644
 --- a/chrome/android/java/src/org/chromium/chrome/browser/app/ChromeActivity.java
 +++ b/chrome/android/java/src/org/chromium/chrome/browser/app/ChromeActivity.java
 @@ -257,6 +257,7 @@ import java.util.List;
@@ -245,7 +245,7 @@ index aa0f279dff..b8030fd8db 100644
  
      // Agregore related variables
      private IPFSStarter ipfs = new IPFSStarter();
-+    private WifiAutoConnect wifiAutoConnect;
++    private WifiAutoConnect wifiAutoConnect = null;
  
      protected ChromeActivity() {
          mIntentHandler = new IntentHandler(this, createIntentHandlerDelegate());
@@ -268,25 +268,29 @@ index aa0f279dff..b8030fd8db 100644
      @Override
      protected void onPreCreate() {
          CachedFeatureFlags.onStartOrResumeCheckpoint();
-@@ -1157,6 +1172,8 @@ public abstract class ChromeActivity<C extends ChromeActivityComponent>
+@@ -1157,6 +1172,10 @@ public abstract class ChromeActivity<C extends ChromeActivityComponent>
          }
          VrModuleProvider.getDelegate().maybeRegisterVrEntryHook(this);
  
-+        wifiAutoConnect.onResume();
++        if (wifiAutoConnect != null) {
++            wifiAutoConnect.onResume();
++        }
 +
          getManualFillingComponent().onResume();
      }
  
-@@ -1218,6 +1235,8 @@ public abstract class ChromeActivity<C extends ChromeActivityComponent>
+@@ -1218,6 +1237,10 @@ public abstract class ChromeActivity<C extends ChromeActivityComponent>
          if (tab != null) getTabContentManager().cacheTabThumbnail(tab);
          getManualFillingComponent().onPause();
  
-+        wifiAutoConnect.onPause();
++        if (wifiAutoConnect != null) {
++            wifiAutoConnect.onPause();
++        }
 +
          VrModuleProvider.getDelegate().maybeUnregisterVrEntryHook();
          markSessionEnd();
  
-@@ -1317,6 +1336,17 @@ public abstract class ChromeActivity<C extends ChromeActivityComponent>
+@@ -1317,6 +1340,18 @@ public abstract class ChromeActivity<C extends ChromeActivityComponent>
  
              // Load IPFS service and autostart the gateway
              ipfs.loadService(this, true);
@@ -300,11 +304,12 @@ index aa0f279dff..b8030fd8db 100644
 +                    onWifiAutoConnectStateChange(state);
 +                }
 +            });
++            wifiAutoConnect.onResume();
 +
  
              FontSizePrefs.getInstance(Profile.getLastUsedRegularProfile())
                      .recordUserFontPrefOnStartup();
-@@ -1578,6 +1608,10 @@ public abstract class ChromeActivity<C extends ChromeActivityComponent>
+@@ -1578,6 +1613,10 @@ public abstract class ChromeActivity<C extends ChromeActivityComponent>
          if (ipfs.isBound()) {
              ipfs.unloadService();
          }
