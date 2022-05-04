@@ -1,10 +1,11 @@
-From f089d0d7893511ee1849c2c905f70243c33764ca Mon Sep 17 00:00:00 2001
+From bb4642ce6682274d16bb5a1c6388403da46f98df Mon Sep 17 00:00:00 2001
 From: mauve <ranger@mauve.moe>
 Date: Sat, 23 Apr 2022 01:34:51 -0400
 Subject: [PATCH] AG Wifi Auto Connect
 
 ---
  .gitignore                                    |   2 +
+ build/config/android/config.gni               |   2 +-
  chrome/android/BUILD.gn                       |   3 +-
  chrome/android/chrome_java_resources.gni      |   1 +
  chrome/android/chrome_public_apk_tmpl.gni     |   5 +-
@@ -22,7 +23,7 @@ Subject: [PATCH] AG Wifi Auto Connect
  third_party/wifi_autoconnect/README.chromium  |   3 +
  .../wifi_autoconnect/WifiAutoConnect.info     |  14 ++
  third_party/wifi_autoconnect/cipd.yaml        |   4 +
- 18 files changed, 340 insertions(+), 2 deletions(-)
+ 19 files changed, 341 insertions(+), 3 deletions(-)
  create mode 100644 chrome/android/java/res/drawable/wifi_auto_connect.xml
  create mode 100644 third_party/wifi_autoconnect/BUILD.gn
  create mode 100644 third_party/wifi_autoconnect/LICENSE
@@ -41,6 +42,19 @@ index 52f5a6157a..de6fe1c969 100644
  third_party/agregore-ipfs-daemon/agregore-ipfs-daemon.aar
 +# Ignore wifi_autoconnect binary since it's downloaded outside of git
 +third_party/wifi_autoconnect/WifiAutoConnect.aar
+diff --git a/build/config/android/config.gni b/build/config/android/config.gni
+index 5fa6099883..469b8080a4 100644
+--- a/build/config/android/config.gni
++++ b/build/config/android/config.gni
+@@ -49,7 +49,7 @@ if (is_android || is_chromeos) {
+ 
+     # The default to use for android:minSdkVersion for targets that do
+     # not explicitly set it.
+-    default_min_sdk_version = 23
++    default_min_sdk_version = 29
+ 
+     # Static analysis can be either "on" or "off" or "build_server". This
+     # controls how android lint, error-prone, bytecode checks are run. This
 diff --git a/chrome/android/BUILD.gn b/chrome/android/BUILD.gn
 index a75c19ef61..4a071c9127 100644
 --- a/chrome/android/BUILD.gn
