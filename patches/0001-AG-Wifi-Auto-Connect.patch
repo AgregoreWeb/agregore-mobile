@@ -1,4 +1,4 @@
-From e1f835d2f9434f727361021947a86bf9dbe2024a Mon Sep 17 00:00:00 2001
+From 85d0dec7beb22380b434fd6a603a0e7717600ad7 Mon Sep 17 00:00:00 2001
 From: mauve <ranger@mauve.moe>
 Date: Sat, 23 Apr 2022 01:34:51 -0400
 Subject: [PATCH] AG Wifi Auto Connect
@@ -189,7 +189,7 @@ index 1e13a955e4..a9bf3ca01e 100644
  		loadService(binder, false);
  	}
 diff --git a/chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java b/chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java
-index 699bd11bf1..b3061371bd 100644
+index 699bd11bf1..77caf7397c 100644
 --- a/chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java
 +++ b/chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java
 @@ -19,6 +19,7 @@ import android.util.Pair;
@@ -229,7 +229,7 @@ index 699bd11bf1..b3061371bd 100644
 +        }
 +
 +        Toast
-+            .makeToast(getApplicationContext(), newTitle, Toast.LENGTH_SHORT)
++            .makeText(ChromeTabbedActivity.this, newTitle, Toast.LENGTH_SHORT)
 +            .show();
 +
 +        if(item == null) {
