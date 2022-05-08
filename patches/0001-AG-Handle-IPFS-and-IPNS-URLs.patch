@@ -1,18 +1,17 @@
-From 9876bc94cff3c5010bf9ac89265603e1a6a6f2c4 Mon Sep 17 00:00:00 2001
+From 50b5be3e541e8cea66fceeec9424f404db45737b Mon Sep 17 00:00:00 2001
 From: Madrets <emmanuel.elite.46@gmail.com>
 Date: Thu, 21 Apr 2022 10:44:57 -0400
 Subject: [PATCH] AG Handle IPFS and IPNS URLs
 
 ---
- chrome/browser/browser_about_handler.cc    | 25 +++++++++++++++++--
+ chrome/browser/browser_about_handler.cc    | 25 ++++++++++++++--
  chrome/browser/profiles/profile_io_data.cc |  2 ++
  content/common/url_schemes.cc              |  2 ++
- net/url_request/url_request_http_job.cc    | 28 ++++++++++++++++++++++
- net/url_request/url_request_job_factory.cc |  4 ++++
- url/url_constants.cc                       |  4 ++++
- url/url_constants.h                        |  4 ++++
- url/url_util.cc                            |  7 ++++++
- 8 files changed, 74 insertions(+), 2 deletions(-)
+ net/url_request/url_request_job_factory.cc | 33 ++++++++++++++++++++++
+ url/url_constants.cc                       |  4 +++
+ url/url_constants.h                        |  4 +++
+ url/url_util.cc                            |  7 +++++
+ 7 files changed, 75 insertions(+), 2 deletions(-)
 
 diff --git a/chrome/browser/browser_about_handler.cc b/chrome/browser/browser_about_handler.cc
 index 9e534ff1683f1..e4d1430892548 100644
@@ -79,57 +78,54 @@ index e59440185a5fe..b40ab7fde653f 100644
    url::kFileScheme,
    url::kFileSystemScheme,
    kChromeDevToolsScheme,
-diff --git a/net/url_request/url_request_http_job.cc b/net/url_request/url_request_http_job.cc
-index 79cb00785421a..1f8e050234d22 100644
---- a/net/url_request/url_request_http_job.cc
-+++ b/net/url_request/url_request_http_job.cc
-@@ -10,6 +10,8 @@
- #include <utility>
- #include <vector>
- 
-+#include <string>
-+
- #include "base/base_switches.h"
- #include "base/bind.h"
- #include "base/callback_helpers.h"
-@@ -191,6 +193,32 @@ namespace net {
- std::unique_ptr<URLRequestJob> URLRequestHttpJob::Create(URLRequest* request) {
-   const GURL& url = request->url();
- 
-+  // Handle ipfs and ipns URLs
-+  std::string scheme(url.scheme());
-+  std::string host(url.host());
-+  std::string path(url.path());
-+
-+  if (scheme == url::kIpfsScheme || scheme == url::kIpnsScheme) {
-+    std::string tempPath = "/" + scheme + "/" + host + path;
-+    const char* newPath = tempPath.c_str();
-+    const char newHost[] = "localhost";
-+    const char newPort[] = "8080";
-+    GURL new_url = url;
-+
-+    GURL::Replacements replacements;
-+    replacements.SetSchemeStr(url::kHttpScheme);
-+    replacements.SetHostStr(newHost);
-+    replacements.SetPortStr(newPort);
-+    replacements.SetPathStr(newPath);
-+    new_url = new_url.ReplaceComponents(replacements);
-+    
-+    std::vector<GURL> url_chain;
-+    url_chain.push_back(new_url);
-+    request->SetURLChain(url_chain);
-+    return URLRequestHttpJob::Create(request);
-+  }
-+
-+
-   // URLRequestContext must have been initialized.
-   DCHECK(request->context()->http_transaction_factory());
-   DCHECK(url.SchemeIsHTTPOrHTTPS() || url.SchemeIsWSOrWSS());
 diff --git a/net/url_request/url_request_job_factory.cc b/net/url_request/url_request_job_factory.cc
-index 079187d608d69..c89024828721c 100644
+index 079187d608d69..775a393b24909 100644
 --- a/net/url_request/url_request_job_factory.cc
 +++ b/net/url_request/url_request_job_factory.cc
-@@ -60,6 +60,10 @@ URLRequestJobFactory::URLRequestJobFactory() {
+@@ -14,6 +14,9 @@
+ #include "url/gurl.h"
+ #include "url/url_constants.h"
+ 
++#include <string>
++#include <vector>
++
+ namespace net {
+ 
+ namespace {
+@@ -40,6 +43,32 @@ class HttpProtocolHandler : public URLRequestJobFactory::ProtocolHandler {
+       return std::make_unique<URLRequestErrorJob>(request,
+                                                   ERR_UNKNOWN_URL_SCHEME);
+     }
++
++    // Handle ipfs and ipns URLs
++    const GURL& url = request->url();
++    std::string scheme(url.scheme());
++    std::string host(url.host());
++    std::string path(url.path());
++  
++    if (scheme == url::kIpfsScheme || scheme == url::kIpnsScheme) {
++      std::string tempPath = "/" + scheme + "/" + host + path;
++      const char* newPath = tempPath.c_str();
++      const char newHost[] = "localhost";
++      const char newPort[] = "8080";
++      GURL new_url = url;
++    
++      GURL::Replacements replacements;
++      replacements.SetSchemeStr(url::kHttpScheme);
++      replacements.SetHostStr(newHost);
++      replacements.SetPortStr(newPort);
++      replacements.SetPathStr(newPath);
++      new_url = new_url.ReplaceComponents(replacements);
++    
++      std::vector<GURL> url_chain = {};
++      url_chain.push_back(new_url);
++      request->SetURLChain(url_chain); 
++    }
++
+     return URLRequestHttpJob::Create(request);
+   }
+ 
+@@ -60,6 +89,10 @@ URLRequestJobFactory::URLRequestJobFactory() {
                                             /*is_for_websockets=*/false));
    SetProtocolHandler(url::kHttpsScheme, std::make_unique<HttpProtocolHandler>(
                                              /*is_for_websockets=*/false));
