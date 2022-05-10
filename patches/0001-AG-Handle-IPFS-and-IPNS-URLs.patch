@@ -1,20 +1,22 @@
-From 50b5be3e541e8cea66fceeec9424f404db45737b Mon Sep 17 00:00:00 2001
+From dc8343ce18d3c3eaea91d50df53107ac0b6615be Mon Sep 17 00:00:00 2001
 From: Madrets <emmanuel.elite.46@gmail.com>
 Date: Thu, 21 Apr 2022 10:44:57 -0400
 Subject: [PATCH] AG Handle IPFS and IPNS URLs
 
 ---
- chrome/browser/browser_about_handler.cc    | 25 ++++++++++++++--
+ chrome/browser/browser_about_handler.cc    | 25 +++++++++++++--
  chrome/browser/profiles/profile_io_data.cc |  2 ++
  content/common/url_schemes.cc              |  2 ++
- net/url_request/url_request_job_factory.cc | 33 ++++++++++++++++++++++
+ net/url_request/url_request.cc             |  5 +++
+ net/url_request/url_request.h              |  1 +
+ net/url_request/url_request_job_factory.cc | 36 ++++++++++++++++++++++
  url/url_constants.cc                       |  4 +++
  url/url_constants.h                        |  4 +++
  url/url_util.cc                            |  7 +++++
- 7 files changed, 75 insertions(+), 2 deletions(-)
+ 9 files changed, 84 insertions(+), 2 deletions(-)
 
 diff --git a/chrome/browser/browser_about_handler.cc b/chrome/browser/browser_about_handler.cc
-index 9e534ff1683f1..e4d1430892548 100644
+index 9e534ff168..e4d1430892 100644
 --- a/chrome/browser/browser_about_handler.cc
 +++ b/chrome/browser/browser_about_handler.cc
 @@ -32,11 +32,32 @@ bool HandleChromeAboutAndChromeSyncRewrite(
@@ -53,7 +55,7 @@ index 9e534ff1683f1..e4d1430892548 100644
      // Replace chrome://about with chrome://chrome-urls.
      host = chrome::kChromeUIChromeURLsHost;
 diff --git a/chrome/browser/profiles/profile_io_data.cc b/chrome/browser/profiles/profile_io_data.cc
-index 242c2e3f1fdd1..983a9071a3ccb 100644
+index 242c2e3f1f..983a9071a3 100644
 --- a/chrome/browser/profiles/profile_io_data.cc
 +++ b/chrome/browser/profiles/profile_io_data.cc
 @@ -26,6 +26,8 @@ bool ProfileIOData::IsHandledProtocol(const std::string& scheme) {
@@ -66,7 +68,7 @@ index 242c2e3f1fdd1..983a9071a3ccb 100644
      url::kWsScheme,
      url::kWssScheme,
 diff --git a/content/common/url_schemes.cc b/content/common/url_schemes.cc
-index e59440185a5fe..b40ab7fde653f 100644
+index e59440185a..b40ab7fde6 100644
 --- a/content/common/url_schemes.cc
 +++ b/content/common/url_schemes.cc
 @@ -25,6 +25,8 @@ bool g_registered_url_schemes = false;
@@ -78,8 +80,36 @@ index e59440185a5fe..b40ab7fde653f 100644
    url::kFileScheme,
    url::kFileSystemScheme,
    kChromeDevToolsScheme,
+diff --git a/net/url_request/url_request.cc b/net/url_request/url_request.cc
+index 849713728f..fffa45c6c6 100644
+--- a/net/url_request/url_request.cc
++++ b/net/url_request/url_request.cc
+@@ -473,6 +473,11 @@ void URLRequest::SetURLChain(const std::vector<GURL>& url_chain) {
+                     url_chain.begin() + url_chain.size() - 1);
+ }
+ 
++void URLRequest::SetURLChainUnsafe(const std::vector<GURL>& url_chain) {
++  url_chain_ = url_chain;
++}
++
++
+ void URLRequest::set_site_for_cookies(const SiteForCookies& site_for_cookies) {
+   DCHECK(!is_pending_);
+   site_for_cookies_ = site_for_cookies;
+diff --git a/net/url_request/url_request.h b/net/url_request/url_request.h
+index b4bf5651be..61de4b1d44 100644
+--- a/net/url_request/url_request.h
++++ b/net/url_request/url_request.h
+@@ -246,6 +246,7 @@ class NET_EXPORT URLRequest : public base::SupportsUserData {
+   // This method should only be called on new requests that have a single
+   // entry in their existing `url_chain_`.
+   void SetURLChain(const std::vector<GURL>& url_chain);
++  void SetURLChainUnsafe(const std::vector<GURL>& url_chain);
+ 
+   // The URL that should be consulted for the third-party cookie blocking
+   // policy, as defined in Section 2.1.1 and 2.1.2 of
 diff --git a/net/url_request/url_request_job_factory.cc b/net/url_request/url_request_job_factory.cc
-index 079187d608d69..775a393b24909 100644
+index 079187d608..721abda796 100644
 --- a/net/url_request/url_request_job_factory.cc
 +++ b/net/url_request/url_request_job_factory.cc
 @@ -14,6 +14,9 @@
@@ -92,7 +122,7 @@ index 079187d608d69..775a393b24909 100644
  namespace net {
  
  namespace {
-@@ -40,6 +43,32 @@ class HttpProtocolHandler : public URLRequestJobFactory::ProtocolHandler {
+@@ -40,6 +43,35 @@ class HttpProtocolHandler : public URLRequestJobFactory::ProtocolHandler {
        return std::make_unique<URLRequestErrorJob>(request,
                                                    ERR_UNKNOWN_URL_SCHEME);
      }
@@ -100,32 +130,35 @@ index 079187d608d69..775a393b24909 100644
 +    // Handle ipfs and ipns URLs
 +    const GURL& url = request->url();
 +    std::string scheme(url.scheme());
-+    std::string host(url.host());
-+    std::string path(url.path());
-+  
++
 +    if (scheme == url::kIpfsScheme || scheme == url::kIpnsScheme) {
++      std::string host(url.host());
++      std::string path(url.path());
++
++      std::vector<GURL> url_chain = {};
++      url_chain.push_back(url);
++
 +      std::string tempPath = "/" + scheme + "/" + host + path;
 +      const char* newPath = tempPath.c_str();
 +      const char newHost[] = "localhost";
 +      const char newPort[] = "8080";
 +      GURL new_url = url;
-+    
++
 +      GURL::Replacements replacements;
 +      replacements.SetSchemeStr(url::kHttpScheme);
 +      replacements.SetHostStr(newHost);
 +      replacements.SetPortStr(newPort);
 +      replacements.SetPathStr(newPath);
 +      new_url = new_url.ReplaceComponents(replacements);
-+    
-+      std::vector<GURL> url_chain = {};
++
 +      url_chain.push_back(new_url);
-+      request->SetURLChain(url_chain); 
++      request->SetURLChainUnsafe(url_chain);
 +    }
 +
      return URLRequestHttpJob::Create(request);
    }
  
-@@ -60,6 +89,10 @@ URLRequestJobFactory::URLRequestJobFactory() {
+@@ -60,6 +92,10 @@ URLRequestJobFactory::URLRequestJobFactory() {
                                             /*is_for_websockets=*/false));
    SetProtocolHandler(url::kHttpsScheme, std::make_unique<HttpProtocolHandler>(
                                              /*is_for_websockets=*/false));
@@ -137,7 +170,7 @@ index 079187d608d69..775a393b24909 100644
    SetProtocolHandler(url::kWsScheme, std::make_unique<HttpProtocolHandler>(
                                           /*is_for_websockets=*/true));
 diff --git a/url/url_constants.cc b/url/url_constants.cc
-index 536db0644f6bd..9a43db1529a0a 100644
+index 536db0644f..9a43db1529 100644
 --- a/url/url_constants.cc
 +++ b/url/url_constants.cc
 @@ -37,6 +37,10 @@ const char kHttpScheme[] = "http";
@@ -152,7 +185,7 @@ index 536db0644f6bd..9a43db1529a0a 100644
  const char16_t kJavaScriptScheme16[] = u"javascript";
  const char kMailToScheme[] = "mailto";
 diff --git a/url/url_constants.h b/url/url_constants.h
-index 728b98573c3c0..24a43d9045258 100644
+index 728b98573c..24a43d9045 100644
 --- a/url/url_constants.h
 +++ b/url/url_constants.h
 @@ -43,6 +43,10 @@ COMPONENT_EXPORT(URL) extern const char kHttpScheme[];
@@ -167,7 +200,7 @@ index 728b98573c3c0..24a43d9045258 100644
  COMPONENT_EXPORT(URL) extern const char16_t kJavaScriptScheme16[];
  COMPONENT_EXPORT(URL) extern const char kMailToScheme[];
 diff --git a/url/url_util.cc b/url/url_util.cc
-index 244296a7f8903..5412f120ef370 100644
+index 244296a7f8..5412f120ef 100644
 --- a/url/url_util.cc
 +++ b/url/url_util.cc
 @@ -35,6 +35,8 @@ struct SchemeRegistry {
@@ -204,5 +237,5 @@ index 244296a7f8903..5412f120ef370 100644
  
    // Schemes that can be used by web to store data (local storage, etc).
 -- 
-2.25.1
+2.34.1
 
