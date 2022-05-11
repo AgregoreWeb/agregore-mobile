@@ -1,10 +1,9 @@
-From f5217587311fca660d29e4d4ad7d7f814d9d127b Mon Sep 17 00:00:00 2001
+From cc24442db085e3caf3ae679cc06975b4fac3d62d Mon Sep 17 00:00:00 2001
 From: Madrets <emmanuel.elite.46@gmail.com>
 Date: Thu, 21 Apr 2022 10:44:57 -0400
 Subject: [PATCH] AG Handle IPFS and IPNS URLs
 
 ---
- chrome/browser/browser_about_handler.cc       |  2 +-
  chrome/browser/profiles/profile_io_data.cc    |  4 ++
  content/common/url_schemes.cc                 |  4 ++
  net/url_request/url_request.cc                |  5 +++
@@ -14,21 +13,8 @@ Subject: [PATCH] AG Handle IPFS and IPNS URLs
  url/url_constants.cc                          |  4 ++
  url/url_constants.h                           |  4 ++
  url/url_util.cc                               | 14 +++++++
- 10 files changed, 83 insertions(+), 4 deletions(-)
+ 9 files changed, 82 insertions(+), 3 deletions(-)
 
-diff --git a/chrome/browser/browser_about_handler.cc b/chrome/browser/browser_about_handler.cc
-index 9e534ff1683f1..b6b9ae4028b7e 100644
---- a/chrome/browser/browser_about_handler.cc
-+++ b/chrome/browser/browser_about_handler.cc
-@@ -32,7 +32,7 @@ bool HandleChromeAboutAndChromeSyncRewrite(
-   DCHECK(url->IsAboutBlank() || url->IsAboutSrcdoc() ||
-          !url->SchemeIs(url::kAboutScheme));
- 
--  // Only handle chrome: URLs.
-+  // Only handle these URLs: chrome: ipfs: ipns:
-   if (!url->SchemeIs(content::kChromeUIScheme))
-     return false;
- 
 diff --git a/chrome/browser/profiles/profile_io_data.cc b/chrome/browser/profiles/profile_io_data.cc
 index 242c2e3f1fdd1..fcf2813f3b858 100644
 --- a/chrome/browser/profiles/profile_io_data.cc
@@ -88,7 +74,7 @@ index b4bf5651be49d..61de4b1d44632 100644
    // The URL that should be consulted for the third-party cookie blocking
    // policy, as defined in Section 2.1.1 and 2.1.2 of
 diff --git a/net/url_request/url_request_job_factory.cc b/net/url_request/url_request_job_factory.cc
-index 079187d608d69..4391bb0020924 100644
+index 079187d608d69..a4105ee7f5d1b 100644
 --- a/net/url_request/url_request_job_factory.cc
 +++ b/net/url_request/url_request_job_factory.cc
 @@ -14,6 +14,9 @@
@@ -106,7 +92,7 @@ index 079187d608d69..4391bb0020924 100644
                                                    ERR_UNKNOWN_URL_SCHEME);
      }
 +
-+    // Handle ipfs and ipns URLs
++    // Handle ipfs, ipns, ipld, and pubsub URLs
 +    const GURL& url = request->url();
 +    std::string scheme(url.scheme());
 +
