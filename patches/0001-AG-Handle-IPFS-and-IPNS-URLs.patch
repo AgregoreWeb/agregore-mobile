@@ -1,52 +1,90 @@
-From 8bd8a934bc6cb37ce1f5167f67fd262f79132c41 Mon Sep 17 00:00:00 2001
+From 41e9b47112dbbe2b69253b496524f526804a41d0 Mon Sep 17 00:00:00 2001
 From: Madrets <emmanuel.elite.46@gmail.com>
 Date: Thu, 21 Apr 2022 10:44:57 -0400
 Subject: [PATCH] AG Handle IPFS and IPNS URLs
 
 ---
- chrome/browser/profiles/profile_io_data.cc    |  4 ++
- content/common/url_schemes.cc                 |  4 ++
- net/url_request/url_request.cc                |  5 +++
- net/url_request/url_request.h                 |  1 +
- net/url_request/url_request_job_factory.cc    | 41 +++++++++++++++++++
- .../platform/weborigin/scheme_registry.cc     |  8 ++--
- url/url_constants.cc                          |  4 ++
- url/url_constants.h                           |  4 ++
- url/url_util.cc                               | 14 +++++++
- 9 files changed, 82 insertions(+), 3 deletions(-)
+ chrome/browser/browser_about_handler.cc    | 25 +++++++++++++--
+ chrome/browser/profiles/profile_io_data.cc |  2 ++
+ content/common/url_schemes.cc              |  2 ++
+ net/url_request/url_request.cc             |  5 +++
+ net/url_request/url_request.h              |  1 +
+ net/url_request/url_request_job_factory.cc | 36 ++++++++++++++++++++++
+ services/network/public/cpp/url_util.cc    |  2 +-
+ url/gurl.cc                                |  4 +++
+ url/gurl.h                                 |  3 ++
+ url/url_constants.cc                       |  4 +++
+ url/url_constants.h                        |  4 +++
+ url/url_util.cc                            |  7 +++++
+ 12 files changed, 92 insertions(+), 3 deletions(-)
 
+diff --git a/chrome/browser/browser_about_handler.cc b/chrome/browser/browser_about_handler.cc
+index 9e534ff168..e4d1430892 100644
+--- a/chrome/browser/browser_about_handler.cc
++++ b/chrome/browser/browser_about_handler.cc
+@@ -32,11 +32,32 @@ bool HandleChromeAboutAndChromeSyncRewrite(
+   DCHECK(url->IsAboutBlank() || url->IsAboutSrcdoc() ||
+          !url->SchemeIs(url::kAboutScheme));
+ 
+-  // Only handle chrome: URLs.
+-  if (!url->SchemeIs(content::kChromeUIScheme))
++  // Only handle these URLs: chrome: ipfs: ipns:
++  if (!(url->SchemeIs(content::kChromeUIScheme) ||
++      url->SchemeIs(url::kIpfsScheme) ||
++      url->SchemeIs(url::kIpnsScheme)))
+     return false;
+ 
++  std::string scheme(url->scheme());
+   std::string host(url->host());
++  std::string path(url->path());
++
++  // Handle ipfs and ipns URLs
++  if (scheme == url::kIpfsScheme || scheme == url::kIpnsScheme) {
++    std::string tempPath = "/" + scheme + "/" + host + path;
++    const char* newPath = tempPath.c_str();
++    const char newHost[] = "localhost";
++    const char newPort[] = "8080";
++  
++    GURL::Replacements replacements;
++    replacements.SetSchemeStr(url::kHttpScheme);
++    replacements.SetHostStr(newHost);
++    replacements.SetPortStr(newPort);
++    replacements.SetPathStr(newPath);
++    *url = url->ReplaceComponents(replacements);
++    return false;
++  }
++
+   if (host == chrome::kChromeUIAboutHost) {
+     // Replace chrome://about with chrome://chrome-urls.
+     host = chrome::kChromeUIChromeURLsHost;
 diff --git a/chrome/browser/profiles/profile_io_data.cc b/chrome/browser/profiles/profile_io_data.cc
-index 242c2e3f1fdd1..fcf2813f3b858 100644
+index 242c2e3f1f..983a9071a3 100644
 --- a/chrome/browser/profiles/profile_io_data.cc
 +++ b/chrome/browser/profiles/profile_io_data.cc
-@@ -26,6 +26,10 @@ bool ProfileIOData::IsHandledProtocol(const std::string& scheme) {
+@@ -26,6 +26,8 @@ bool ProfileIOData::IsHandledProtocol(const std::string& scheme) {
    static const char* const kProtocolList[] = {
      url::kHttpScheme,
      url::kHttpsScheme,
 +    url::kIpfsScheme,
 +    url::kIpnsScheme,
-+    url::kIpldScheme,
-+    url::kPubsubScheme,
  #if BUILDFLAG(ENABLE_WEBSOCKETS)
      url::kWsScheme,
      url::kWssScheme,
 diff --git a/content/common/url_schemes.cc b/content/common/url_schemes.cc
-index e59440185a5fe..b3cee67300bc4 100644
+index e59440185a..b40ab7fde6 100644
 --- a/content/common/url_schemes.cc
 +++ b/content/common/url_schemes.cc
-@@ -25,6 +25,10 @@ bool g_registered_url_schemes = false;
+@@ -25,6 +25,8 @@ bool g_registered_url_schemes = false;
  const char* const kDefaultSavableSchemes[] = {
    url::kHttpScheme,
    url::kHttpsScheme,
 +  url::kIpfsScheme,
 +  url::kIpnsScheme,
-+  url::kIpldScheme,
-+  url::kPubsubScheme,
    url::kFileScheme,
    url::kFileSystemScheme,
    kChromeDevToolsScheme,
 diff --git a/net/url_request/url_request.cc b/net/url_request/url_request.cc
-index 849713728f08b..fffa45c6c62f2 100644
+index 849713728f..fffa45c6c6 100644
 --- a/net/url_request/url_request.cc
 +++ b/net/url_request/url_request.cc
 @@ -473,6 +473,11 @@ void URLRequest::SetURLChain(const std::vector<GURL>& url_chain) {
@@ -62,7 +100,7 @@ index 849713728f08b..fffa45c6c62f2 100644
    DCHECK(!is_pending_);
    site_for_cookies_ = site_for_cookies;
 diff --git a/net/url_request/url_request.h b/net/url_request/url_request.h
-index b4bf5651be49d..61de4b1d44632 100644
+index b4bf5651be..61de4b1d44 100644
 --- a/net/url_request/url_request.h
 +++ b/net/url_request/url_request.h
 @@ -246,6 +246,7 @@ class NET_EXPORT URLRequest : public base::SupportsUserData {
@@ -74,7 +112,7 @@ index b4bf5651be49d..61de4b1d44632 100644
    // The URL that should be consulted for the third-party cookie blocking
    // policy, as defined in Section 2.1.1 and 2.1.2 of
 diff --git a/net/url_request/url_request_job_factory.cc b/net/url_request/url_request_job_factory.cc
-index 079187d608d69..c6f7b6bdaa73f 100644
+index 079187d608..721abda796 100644
 --- a/net/url_request/url_request_job_factory.cc
 +++ b/net/url_request/url_request_job_factory.cc
 @@ -14,6 +14,9 @@
@@ -87,17 +125,16 @@ index 079187d608d69..c6f7b6bdaa73f 100644
  namespace net {
  
  namespace {
-@@ -40,6 +43,36 @@ class HttpProtocolHandler : public URLRequestJobFactory::ProtocolHandler {
+@@ -40,6 +43,35 @@ class HttpProtocolHandler : public URLRequestJobFactory::ProtocolHandler {
        return std::make_unique<URLRequestErrorJob>(request,
                                                    ERR_UNKNOWN_URL_SCHEME);
      }
 +
-+    // Handle ipfs, ipns, ipld, and pubsub URLs
++    // Handle ipfs and ipns URLs
 +    const GURL& url = request->url();
 +    std::string scheme(url.scheme());
 +
-+    if (scheme == url::kIpfsScheme || scheme == url::kIpnsScheme ||
-+        scheme == url::kIpldScheme || scheme == url::kPubsubScheme) {
++    if (scheme == url::kIpfsScheme || scheme == url::kIpnsScheme) {
 +      std::string host(url.host());
 +      std::string path(url.path());
 +
@@ -124,42 +161,61 @@ index 079187d608d69..c6f7b6bdaa73f 100644
      return URLRequestHttpJob::Create(request);
    }
  
-@@ -60,6 +93,14 @@ URLRequestJobFactory::URLRequestJobFactory() {
+@@ -60,6 +92,10 @@ URLRequestJobFactory::URLRequestJobFactory() {
                                             /*is_for_websockets=*/false));
    SetProtocolHandler(url::kHttpsScheme, std::make_unique<HttpProtocolHandler>(
                                              /*is_for_websockets=*/false));
 +  SetProtocolHandler(url::kIpfsScheme, std::make_unique<HttpProtocolHandler>(
 +                                         /*is_for_websockets=*/false));
 +  SetProtocolHandler(url::kIpnsScheme, std::make_unique<HttpProtocolHandler>(
-+                                         /*is_for_websockets=*/false));
-+  SetProtocolHandler(url::kIpldScheme, std::make_unique<HttpProtocolHandler>(
-+                                         /*is_for_websockets=*/false));
-+  SetProtocolHandler(url::kPubsubScheme, std::make_unique<HttpProtocolHandler>(
-+                                         /*is_for_websockets=*/false));
++                                         /*is_for_websockets=*/false));  
  #if BUILDFLAG(ENABLE_WEBSOCKETS)
    SetProtocolHandler(url::kWsScheme, std::make_unique<HttpProtocolHandler>(
                                           /*is_for_websockets=*/true));
-diff --git a/third_party/blink/renderer/platform/weborigin/scheme_registry.cc b/third_party/blink/renderer/platform/weborigin/scheme_registry.cc
-index cb1543a669eaf..7a2a50134dbd1 100644
---- a/third_party/blink/renderer/platform/weborigin/scheme_registry.cc
-+++ b/third_party/blink/renderer/platform/weborigin/scheme_registry.cc
-@@ -66,9 +66,11 @@ class URLSchemesRegistry final {
-       :  // For ServiceWorker schemes: HTTP is required because http://localhost
-          // is considered secure. Additional checks are performed to ensure that
-          // other http pages are filtered out.
--        service_worker_schemes({"http", "https"}),
--        fetch_api_schemes({"http", "https"}),
--        allowed_in_referrer_schemes({"http", "https"}) {
-+        service_worker_schemes({"http", "https", "ipfs", "ipns", "ipld", 
-+			        "pubsub"}),
-+        fetch_api_schemes({"http", "https", "ipfs", "ipns", "ipld", "pubsub"}),
-+        allowed_in_referrer_schemes({"http", "https", "ipfs", "ipns",
-+		                     "ipld", "pubsub"}) {
-     for (auto& scheme : url::GetCorsEnabledSchemes())
-       cors_enabled_schemes.insert(scheme.c_str());
-     for (auto& scheme : url::GetCSPBypassingSchemes()) {
+diff --git a/services/network/public/cpp/url_util.cc b/services/network/public/cpp/url_util.cc
+index f41b8934ff..d28e662477 100644
+--- a/services/network/public/cpp/url_util.cc
++++ b/services/network/public/cpp/url_util.cc
+@@ -9,7 +9,7 @@
+ namespace network {
+ 
+ bool IsURLHandledByNetworkService(const GURL& url) {
+-  return (url.SchemeIsHTTPOrHTTPS() || url.SchemeIsWSOrWSS());
++  return (url.SchemeIsHTTPOrHTTPS() || url.SchemeIsWSOrWSS() || url.SchemeIsIPFSP2P());
+ }
+ 
+ }  // namespace network
+diff --git a/url/gurl.cc b/url/gurl.cc
+index d7ede359d1..29552b58ec 100644
+--- a/url/gurl.cc
++++ b/url/gurl.cc
+@@ -362,6 +362,10 @@ bool GURL::SchemeIsWSOrWSS() const {
+   return SchemeIs(url::kWsScheme) || SchemeIs(url::kWssScheme);
+ }
+ 
++bool GURL::SchemeIsIPFSP2P() const {
++  return SchemeIs(url::kIpfsScheme) || SchemeIs(url::kIpnsScheme) || SchemeIs(url::kIpldScheme) || SchemeIs(url::kPubsubScheme);
++}
++
+ bool GURL::SchemeIsCryptographic() const {
+   if (!has_scheme())
+     return false;
+diff --git a/url/gurl.h b/url/gurl.h
+index 8ad47d64a1..5358d22f37 100644
+--- a/url/gurl.h
++++ b/url/gurl.h
+@@ -238,6 +238,9 @@ class COMPONENT_EXPORT(URL) GURL {
+   // Returns true is the scheme is "ws" or "wss".
+   bool SchemeIsWSOrWSS() const;
+ 
++  // Returns true if the scheme is "ipfs" or "ipns" or "ipld" or "pubsub"
++  bool SchemeIsIPFSP2P() const;
++
+   // We often need to know if this is a file URL. File URLs are "standard", but
+   // are often treated separately by some programs.
+   bool SchemeIsFile() const {
 diff --git a/url/url_constants.cc b/url/url_constants.cc
-index 536db0644f6bd..776e5c6d17fef 100644
+index 536db0644f..9a43db1529 100644
 --- a/url/url_constants.cc
 +++ b/url/url_constants.cc
 @@ -37,6 +37,10 @@ const char kHttpScheme[] = "http";
@@ -167,14 +223,14 @@ index 536db0644f6bd..776e5c6d17fef 100644
  const char kHttpsScheme[] = "https";
  const char16_t kHttpsScheme16[] = u"https";
 +const char kIpfsScheme[] = "ipfs";
++const char16_t kIpfsScheme16[] = u"ipfs";
 +const char kIpnsScheme[] = "ipns";
-+const char kIpldScheme[] = "ipld";
-+const char kPubsubScheme[] = "pubsub";
++const char16_t kIpnsScheme16[] = u"ipns";
  const char kJavaScriptScheme[] = "javascript";
  const char16_t kJavaScriptScheme16[] = u"javascript";
  const char kMailToScheme[] = "mailto";
 diff --git a/url/url_constants.h b/url/url_constants.h
-index 728b98573c3c0..36fcccae7abbf 100644
+index 728b98573c..24a43d9045 100644
 --- a/url/url_constants.h
 +++ b/url/url_constants.h
 @@ -43,6 +43,10 @@ COMPONENT_EXPORT(URL) extern const char kHttpScheme[];
@@ -182,61 +238,49 @@ index 728b98573c3c0..36fcccae7abbf 100644
  COMPONENT_EXPORT(URL) extern const char kHttpsScheme[];
  COMPONENT_EXPORT(URL) extern const char16_t kHttpsScheme16[];
 +COMPONENT_EXPORT(URL) extern const char kIpfsScheme[];
++COMPONENT_EXPORT(URL) extern const char16_t kIpfsScheme16[];
 +COMPONENT_EXPORT(URL) extern const char kIpnsScheme[];
-+COMPONENT_EXPORT(URL) extern const char kIpldScheme[];
-+COMPONENT_EXPORT(URL) extern const char kPubsubScheme[];
++COMPONENT_EXPORT(URL) extern const char16_t kIpnsScheme16[];
  COMPONENT_EXPORT(URL) extern const char kJavaScriptScheme[];
  COMPONENT_EXPORT(URL) extern const char16_t kJavaScriptScheme16[];
  COMPONENT_EXPORT(URL) extern const char kMailToScheme[];
 diff --git a/url/url_util.cc b/url/url_util.cc
-index 244296a7f8903..5734a017bf550 100644
+index 244296a7f8..5412f120ef 100644
 --- a/url/url_util.cc
 +++ b/url/url_util.cc
-@@ -35,6 +35,10 @@ struct SchemeRegistry {
+@@ -35,6 +35,8 @@ struct SchemeRegistry {
    std::vector<SchemeWithType> standard_schemes = {
        {kHttpsScheme, SCHEME_WITH_HOST_PORT_AND_USER_INFORMATION},
        {kHttpScheme, SCHEME_WITH_HOST_PORT_AND_USER_INFORMATION},
-+      {kIpfsScheme, SCHEME_WITH_HOST_PORT_AND_USER_INFORMATION},
-+      {kIpnsScheme, SCHEME_WITH_HOST_PORT_AND_USER_INFORMATION},
-+      {kIpldScheme, SCHEME_WITH_HOST_PORT_AND_USER_INFORMATION},
-+      {kPubsubScheme, SCHEME_WITH_HOST_PORT_AND_USER_INFORMATION},
++      {kIpfsScheme, SCHEME_WITH_HOST_AND_PORT},
++      {kIpnsScheme, SCHEME_WITH_HOST_AND_PORT},
        {kTraceScheme, SCHEME_WITH_HOST_PORT_AND_USER_INFORMATION},
        // Yes, file URLs can have a hostname, so file URLs should be handled as
        // "standard". File URLs never have a port as specified by the SchemeType
-@@ -60,11 +64,16 @@ struct SchemeRegistry {
+@@ -60,11 +62,14 @@ struct SchemeRegistry {
    std::vector<SchemeWithType> referrer_schemes = {
        {kHttpsScheme, SCHEME_WITH_HOST_PORT_AND_USER_INFORMATION},
        {kHttpScheme, SCHEME_WITH_HOST_PORT_AND_USER_INFORMATION},
-+      {kIpfsScheme, SCHEME_WITH_HOST_PORT_AND_USER_INFORMATION},
-+      {kIpnsScheme, SCHEME_WITH_HOST_PORT_AND_USER_INFORMATION},
-+      {kIpldScheme, SCHEME_WITH_HOST_PORT_AND_USER_INFORMATION},
-+      {kPubsubScheme, SCHEME_WITH_HOST_PORT_AND_USER_INFORMATION},
++      {kIpfsScheme, SCHEME_WITH_HOST_AND_PORT},
++      {kIpnsScheme, SCHEME_WITH_HOST_AND_PORT},
    };
  
    // Schemes that do not trigger mixed content warning.
    std::vector<std::string> secure_schemes = {
        kHttpsScheme, kAboutScheme, kDataScheme, kQuicTransportScheme, kWssScheme,
-+      kIpfsScheme, kIpnsScheme, kIpldScheme, kPubsubScheme,
++      kIpfsScheme, kIpnsScheme,
    };
  
    // Schemes that normal pages cannot link to or access (i.e., with the same
-@@ -87,11 +96,16 @@ struct SchemeRegistry {
+@@ -87,6 +92,8 @@ struct SchemeRegistry {
        kHttpsScheme,
        kHttpScheme,
        kDataScheme,
 +      kIpfsScheme,
 +      kIpnsScheme,
-+      kIpldScheme,
-+      kPubsubScheme,
    };
  
    // Schemes that can be used by web to store data (local storage, etc).
-   std::vector<std::string> web_storage_schemes = {
-       kHttpsScheme, kHttpScheme, kFileScheme, kFtpScheme, kWssScheme, kWsScheme,
-+      kIpfsScheme, kIpnsScheme, kIpldScheme, kPubsubScheme,
-   };
- 
-   // Schemes that can bypass the Content-Security-Policy (CSP) checks.
 -- 
-2.25.1
+2.34.1
 
