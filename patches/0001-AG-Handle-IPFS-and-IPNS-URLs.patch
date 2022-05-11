@@ -1,4 +1,4 @@
-From cc24442db085e3caf3ae679cc06975b4fac3d62d Mon Sep 17 00:00:00 2001
+From 8bd8a934bc6cb37ce1f5167f67fd262f79132c41 Mon Sep 17 00:00:00 2001
 From: Madrets <emmanuel.elite.46@gmail.com>
 Date: Thu, 21 Apr 2022 10:44:57 -0400
 Subject: [PATCH] AG Handle IPFS and IPNS URLs
@@ -74,7 +74,7 @@ index b4bf5651be49d..61de4b1d44632 100644
    // The URL that should be consulted for the third-party cookie blocking
    // policy, as defined in Section 2.1.1 and 2.1.2 of
 diff --git a/net/url_request/url_request_job_factory.cc b/net/url_request/url_request_job_factory.cc
-index 079187d608d69..a4105ee7f5d1b 100644
+index 079187d608d69..c6f7b6bdaa73f 100644
 --- a/net/url_request/url_request_job_factory.cc
 +++ b/net/url_request/url_request_job_factory.cc
 @@ -14,6 +14,9 @@
@@ -96,7 +96,7 @@ index 079187d608d69..a4105ee7f5d1b 100644
 +    const GURL& url = request->url();
 +    std::string scheme(url.scheme());
 +
-+    if (scheme == url::kIpfsScheme || scheme == url::kIpnsScheme
++    if (scheme == url::kIpfsScheme || scheme == url::kIpnsScheme ||
 +        scheme == url::kIpldScheme || scheme == url::kPubsubScheme) {
 +      std::string host(url.host());
 +      std::string path(url.path());
