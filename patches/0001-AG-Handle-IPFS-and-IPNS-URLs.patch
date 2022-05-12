@@ -1,9 +1,10 @@
-From 9654d02e0afcb967e60c3bd8345489214bf8643b Mon Sep 17 00:00:00 2001
+From 4ef276d3a55b1544b890ff7a99ff647ecd3415c1 Mon Sep 17 00:00:00 2001
 From: Madrets <emmanuel.elite.46@gmail.com>
 Date: Thu, 21 Apr 2022 10:44:57 -0400
 Subject: [PATCH] AG Handle IPFS and IPNS URLs
 
 ---
+ chrome/android/java/AndroidManifest.xml       |  4 ++
  chrome/browser/profiles/profile_io_data.cc    |  4 ++
  content/common/url_schemes.cc                 |  4 ++
  net/url_request/url_request.cc                |  5 +++
@@ -16,8 +17,23 @@ Subject: [PATCH] AG Handle IPFS and IPNS URLs
  url/url_constants.cc                          |  4 ++
  url/url_constants.h                           |  4 ++
  url/url_util.cc                               | 14 +++++++
- 12 files changed, 90 insertions(+), 4 deletions(-)
+ 13 files changed, 94 insertions(+), 4 deletions(-)
 
+diff --git a/chrome/android/java/AndroidManifest.xml b/chrome/android/java/AndroidManifest.xml
+index 1278803e28..71eb475b0c 100644
+--- a/chrome/android/java/AndroidManifest.xml
++++ b/chrome/android/java/AndroidManifest.xml
+@@ -212,6 +212,10 @@ by a child template that "extends" this file.
+                 <data android:scheme="http" />
+                 <data android:scheme="https" />
+                 <data android:scheme="about" />
++                <data android:scheme="ipfs" />
++                <data android:scheme="ipns" />
++                <data android:scheme="ipld" />
++                <data android:scheme="pubsub" />
+                 <category android:name="android.intent.category.BROWSABLE" />
+                 {% endblock %}
+             </intent-filter>
 diff --git a/chrome/browser/profiles/profile_io_data.cc b/chrome/browser/profiles/profile_io_data.cc
 index 242c2e3f1f..fcf2813f3b 100644
 --- a/chrome/browser/profiles/profile_io_data.cc
