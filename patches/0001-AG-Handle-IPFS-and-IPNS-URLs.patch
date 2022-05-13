@@ -1,4 +1,4 @@
-From a60f5787464596fead33c96e7843debb69afe3a7 Mon Sep 17 00:00:00 2001
+From d547fdfc9806f3184d628fb84d93ff79f2e58d39 Mon Sep 17 00:00:00 2001
 From: Madrets <emmanuel.elite.46@gmail.com>
 Date: Thu, 21 Apr 2022 10:44:57 -0400
 Subject: [PATCH] AG Handle IPFS and IPNS URLs
@@ -50,7 +50,7 @@ index 242c2e3f1fdd1..fcf2813f3b858 100644
      url::kWsScheme,
      url::kWssScheme,
 diff --git a/content/common/url_schemes.cc b/content/common/url_schemes.cc
-index e59440185a5fe..978f39a8e7eba 100644
+index e59440185a5fe..d4dd43afb9d8c 100644
 --- a/content/common/url_schemes.cc
 +++ b/content/common/url_schemes.cc
 @@ -25,6 +25,10 @@ bool g_registered_url_schemes = false;
@@ -92,7 +92,7 @@ index e59440185a5fe..978f39a8e7eba 100644
    schemes.cors_enabled_schemes.push_back(kChromeUIUntrustedScheme);
 +  schemes.cors_enabled_schemes.push_back(url::kIpfsScheme);
 +  schemes.cors_enabled_schemes.push_back(url::kIpnsScheme);
-+  schemes.cors_enabled_schemes.push_back(url::kIpldsScheme);
++  schemes.cors_enabled_schemes.push_back(url::kIpldScheme);
 +  schemes.cors_enabled_schemes.push_back(url::kPubsubScheme);
    for (auto& scheme : schemes.cors_enabled_schemes)
      url::AddCorsEnabledScheme(scheme.c_str());
