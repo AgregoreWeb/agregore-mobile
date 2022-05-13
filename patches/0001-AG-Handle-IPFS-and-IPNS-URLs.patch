@@ -1,4 +1,4 @@
-From 4ef276d3a55b1544b890ff7a99ff647ecd3415c1 Mon Sep 17 00:00:00 2001
+From a60f5787464596fead33c96e7843debb69afe3a7 Mon Sep 17 00:00:00 2001
 From: Madrets <emmanuel.elite.46@gmail.com>
 Date: Thu, 21 Apr 2022 10:44:57 -0400
 Subject: [PATCH] AG Handle IPFS and IPNS URLs
@@ -6,7 +6,7 @@ Subject: [PATCH] AG Handle IPFS and IPNS URLs
 ---
  chrome/android/java/AndroidManifest.xml       |  4 ++
  chrome/browser/profiles/profile_io_data.cc    |  4 ++
- content/common/url_schemes.cc                 |  4 ++
+ content/common/url_schemes.cc                 | 21 ++++++++++
  net/url_request/url_request.cc                |  5 +++
  net/url_request/url_request.h                 |  1 +
  net/url_request/url_request_job_factory.cc    | 41 +++++++++++++++++++
@@ -17,10 +17,10 @@ Subject: [PATCH] AG Handle IPFS and IPNS URLs
  url/url_constants.cc                          |  4 ++
  url/url_constants.h                           |  4 ++
  url/url_util.cc                               | 14 +++++++
- 13 files changed, 94 insertions(+), 4 deletions(-)
+ 13 files changed, 111 insertions(+), 4 deletions(-)
 
 diff --git a/chrome/android/java/AndroidManifest.xml b/chrome/android/java/AndroidManifest.xml
-index 1278803e28..71eb475b0c 100644
+index 1278803e2844e..71eb475b0c6e7 100644
 --- a/chrome/android/java/AndroidManifest.xml
 +++ b/chrome/android/java/AndroidManifest.xml
 @@ -212,6 +212,10 @@ by a child template that "extends" this file.
@@ -35,7 +35,7 @@ index 1278803e28..71eb475b0c 100644
                  {% endblock %}
              </intent-filter>
 diff --git a/chrome/browser/profiles/profile_io_data.cc b/chrome/browser/profiles/profile_io_data.cc
-index 242c2e3f1f..fcf2813f3b 100644
+index 242c2e3f1fdd1..fcf2813f3b858 100644
 --- a/chrome/browser/profiles/profile_io_data.cc
 +++ b/chrome/browser/profiles/profile_io_data.cc
 @@ -26,6 +26,10 @@ bool ProfileIOData::IsHandledProtocol(const std::string& scheme) {
@@ -50,7 +50,7 @@ index 242c2e3f1f..fcf2813f3b 100644
      url::kWsScheme,
      url::kWssScheme,
 diff --git a/content/common/url_schemes.cc b/content/common/url_schemes.cc
-index e59440185a..b3cee67300 100644
+index e59440185a5fe..978f39a8e7eba 100644
 --- a/content/common/url_schemes.cc
 +++ b/content/common/url_schemes.cc
 @@ -25,6 +25,10 @@ bool g_registered_url_schemes = false;
@@ -64,8 +64,53 @@ index e59440185a..b3cee67300 100644
    url::kFileScheme,
    url::kFileSystemScheme,
    kChromeDevToolsScheme,
+@@ -59,6 +63,10 @@ void RegisterContentSchemes(bool should_lock_registry) {
+ 
+   url::AddStandardScheme(kChromeDevToolsScheme, url::SCHEME_WITH_HOST);
+   url::AddStandardScheme(kChromeUIScheme, url::SCHEME_WITH_HOST);
++  url::AddStandardScheme(url::kIpfsScheme, url::SCHEME_WITH_HOST_PORT_AND_USER_INFORMATION);
++  url::AddStandardScheme(url::kIpnsScheme, url::SCHEME_WITH_HOST_PORT_AND_USER_INFORMATION);
++  url::AddStandardScheme(url::kIpldScheme, url::SCHEME_WITH_HOST_PORT_AND_USER_INFORMATION);
++  url::AddStandardScheme(url::kPubsubScheme, url::SCHEME_WITH_HOST_PORT_AND_USER_INFORMATION);
+   url::AddStandardScheme(kChromeUIUntrustedScheme, url::SCHEME_WITH_HOST);
+   url::AddStandardScheme(kGuestScheme, url::SCHEME_WITH_HOST);
+   url::AddStandardScheme(kChromeErrorScheme, url::SCHEME_WITH_HOST);
+@@ -71,6 +79,10 @@ void RegisterContentSchemes(bool should_lock_registry) {
+ 
+   schemes.secure_schemes.push_back(kChromeDevToolsScheme);
+   schemes.secure_schemes.push_back(kChromeUIScheme);
++  schemes.secure_schemes.push_back(url::kIpfsScheme);
++  schemes.secure_schemes.push_back(url::kIpnsScheme);
++  schemes.secure_schemes.push_back(url::kIpldScheme);
++  schemes.secure_schemes.push_back(url::kPubsubScheme);
+   schemes.secure_schemes.push_back(kChromeUIUntrustedScheme);
+   schemes.secure_schemes.push_back(kChromeErrorScheme);
+   for (auto& scheme : schemes.secure_schemes)
+@@ -88,6 +100,10 @@ void RegisterContentSchemes(bool should_lock_registry) {
+ 
+   schemes.cors_enabled_schemes.push_back(kChromeUIScheme);
+   schemes.cors_enabled_schemes.push_back(kChromeUIUntrustedScheme);
++  schemes.cors_enabled_schemes.push_back(url::kIpfsScheme);
++  schemes.cors_enabled_schemes.push_back(url::kIpnsScheme);
++  schemes.cors_enabled_schemes.push_back(url::kIpldsScheme);
++  schemes.cors_enabled_schemes.push_back(url::kPubsubScheme);
+   for (auto& scheme : schemes.cors_enabled_schemes)
+     url::AddCorsEnabledScheme(scheme.c_str());
+ 
+@@ -104,6 +120,11 @@ void RegisterContentSchemes(bool should_lock_registry) {
+     url::EnableNonStandardSchemesForAndroidWebView();
+ #endif
+ 
++  schemes.service_worker_schemes.push_back(url::kIpfsScheme);
++  schemes.service_worker_schemes.push_back(url::kIpnsScheme);
++  schemes.service_worker_schemes.push_back(url::kIpldScheme);
++  schemes.service_worker_schemes.push_back(url::kPubsubScheme);
++
+   // Prevent future modification of the scheme lists. This is to prevent
+   // accidental creation of data races in the program. Add*Scheme aren't
+   // threadsafe so must be called when GURL isn't used on any other thread. This
 diff --git a/net/url_request/url_request.cc b/net/url_request/url_request.cc
-index 849713728f..fffa45c6c6 100644
+index 849713728f08b..fffa45c6c62f2 100644
 --- a/net/url_request/url_request.cc
 +++ b/net/url_request/url_request.cc
 @@ -473,6 +473,11 @@ void URLRequest::SetURLChain(const std::vector<GURL>& url_chain) {
@@ -81,7 +126,7 @@ index 849713728f..fffa45c6c6 100644
    DCHECK(!is_pending_);
    site_for_cookies_ = site_for_cookies;
 diff --git a/net/url_request/url_request.h b/net/url_request/url_request.h
-index b4bf5651be..61de4b1d44 100644
+index b4bf5651be49d..61de4b1d44632 100644
 --- a/net/url_request/url_request.h
 +++ b/net/url_request/url_request.h
 @@ -246,6 +246,7 @@ class NET_EXPORT URLRequest : public base::SupportsUserData {
@@ -93,7 +138,7 @@ index b4bf5651be..61de4b1d44 100644
    // The URL that should be consulted for the third-party cookie blocking
    // policy, as defined in Section 2.1.1 and 2.1.2 of
 diff --git a/net/url_request/url_request_job_factory.cc b/net/url_request/url_request_job_factory.cc
-index 079187d608..c6f7b6bdaa 100644
+index 079187d608d69..c6f7b6bdaa73f 100644
 --- a/net/url_request/url_request_job_factory.cc
 +++ b/net/url_request/url_request_job_factory.cc
 @@ -14,6 +14,9 @@
@@ -159,7 +204,7 @@ index 079187d608..c6f7b6bdaa 100644
    SetProtocolHandler(url::kWsScheme, std::make_unique<HttpProtocolHandler>(
                                           /*is_for_websockets=*/true));
 diff --git a/services/network/public/cpp/url_util.cc b/services/network/public/cpp/url_util.cc
-index f41b8934ff..d28e662477 100644
+index f41b8934ff7bc..d28e6624779d3 100644
 --- a/services/network/public/cpp/url_util.cc
 +++ b/services/network/public/cpp/url_util.cc
 @@ -9,7 +9,7 @@
@@ -172,7 +217,7 @@ index f41b8934ff..d28e662477 100644
  
  }  // namespace network
 diff --git a/third_party/blink/renderer/platform/weborigin/scheme_registry.cc b/third_party/blink/renderer/platform/weborigin/scheme_registry.cc
-index cb1543a669..7a2a50134d 100644
+index cb1543a669eaf..7a2a50134dbd1 100644
 --- a/third_party/blink/renderer/platform/weborigin/scheme_registry.cc
 +++ b/third_party/blink/renderer/platform/weborigin/scheme_registry.cc
 @@ -66,9 +66,11 @@ class URLSchemesRegistry final {
@@ -191,7 +236,7 @@ index cb1543a669..7a2a50134d 100644
        cors_enabled_schemes.insert(scheme.c_str());
      for (auto& scheme : url::GetCSPBypassingSchemes()) {
 diff --git a/url/gurl.cc b/url/gurl.cc
-index d7ede359d1..29552b58ec 100644
+index d7ede359d1507..29552b58ec7c7 100644
 --- a/url/gurl.cc
 +++ b/url/gurl.cc
 @@ -362,6 +362,10 @@ bool GURL::SchemeIsWSOrWSS() const {
@@ -206,7 +251,7 @@ index d7ede359d1..29552b58ec 100644
    if (!has_scheme())
      return false;
 diff --git a/url/gurl.h b/url/gurl.h
-index 8ad47d64a1..5358d22f37 100644
+index 8ad47d64a1493..5358d22f37004 100644
 --- a/url/gurl.h
 +++ b/url/gurl.h
 @@ -238,6 +238,9 @@ class COMPONENT_EXPORT(URL) GURL {
@@ -220,7 +265,7 @@ index 8ad47d64a1..5358d22f37 100644
    // are often treated separately by some programs.
    bool SchemeIsFile() const {
 diff --git a/url/url_constants.cc b/url/url_constants.cc
-index 536db0644f..776e5c6d17 100644
+index 536db0644f6bd..776e5c6d17fef 100644
 --- a/url/url_constants.cc
 +++ b/url/url_constants.cc
 @@ -37,6 +37,10 @@ const char kHttpScheme[] = "http";
@@ -235,7 +280,7 @@ index 536db0644f..776e5c6d17 100644
  const char16_t kJavaScriptScheme16[] = u"javascript";
  const char kMailToScheme[] = "mailto";
 diff --git a/url/url_constants.h b/url/url_constants.h
-index 728b98573c..36fcccae7a 100644
+index 728b98573c3c0..36fcccae7abbf 100644
 --- a/url/url_constants.h
 +++ b/url/url_constants.h
 @@ -43,6 +43,10 @@ COMPONENT_EXPORT(URL) extern const char kHttpScheme[];
@@ -250,7 +295,7 @@ index 728b98573c..36fcccae7a 100644
  COMPONENT_EXPORT(URL) extern const char16_t kJavaScriptScheme16[];
  COMPONENT_EXPORT(URL) extern const char kMailToScheme[];
 diff --git a/url/url_util.cc b/url/url_util.cc
-index 244296a7f8..5734a017bf 100644
+index 244296a7f8903..5734a017bf550 100644
 --- a/url/url_util.cc
 +++ b/url/url_util.cc
 @@ -35,6 +35,10 @@ struct SchemeRegistry {
@@ -299,5 +344,5 @@ index 244296a7f8..5734a017bf 100644
  
    // Schemes that can bypass the Content-Security-Policy (CSP) checks.
 -- 
-2.34.1
+2.25.1
 
