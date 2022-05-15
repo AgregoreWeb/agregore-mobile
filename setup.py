@@ -110,4 +110,8 @@ print("Running Download IPFS Daemon Script")
 download_ipfs_daemon_script = os.path.join(root, 'download_ipfs_daemon.py')
 subprocess.run(download_ipfs_daemon_script, cwd=root, shell=True, check=True)
 
+print("Running Download WifiAutoConnect Script")
+download_wifi_autoconnect_script = os.path.join(root, 'download_wifi_autoconnect.py')
+subprocess.run(download_wifi_autoconnect_script, cwd=root, shell=True, check=True)
+
 print("Really Done!")

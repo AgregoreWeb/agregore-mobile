@@ -11,9 +11,10 @@ Subject: [PATCH] AG IPFS Daemon
  chrome/android/java/AndroidManifest.xml       |  11 +
  .../java/AndroidManifest_trichrome_chrome.xml |   2 +-
  .../values/channel_constants.xml              |   1 +
- .../mauve/agregore/mobile/IPFSService.java    | 152 +++++++++++++
+ .../mauve/agregore/mobile/IPFSService.java    | 153 +++++++++++++
  .../mauve/agregore/mobile/IPFSStarter.java    |  94 ++++++++
  .../chrome/browser/app/ChromeActivity.java    |  13 ++
+ chrome/android/trichrome.gni                  |  12 +-
  third_party/agregore-ipfs-daemon/BUILD.gn     |   9 +
  third_party/agregore-ipfs-daemon/LICENSE      | 201 ++++++++++++++++++
  third_party/agregore-ipfs-daemon/OWNERS       |   2 +
@@ -21,7 +22,7 @@ Subject: [PATCH] AG IPFS Daemon
  .../agregore-ipfs-daemon.info                 |  17 ++
  third_party/agregore-ipfs-daemon/cipd.yaml    |   4 +
  .../arcore-android-sdk-client/proguard.txt    |   2 +-
- 17 files changed, 526 insertions(+), 2 deletions(-)
+ 18 files changed, 538 insertions(+), 3 deletions(-)
  create mode 100644 chrome/android/java/src/moe/mauve/agregore/mobile/IPFSService.java
  create mode 100644 chrome/android/java/src/moe/mauve/agregore/mobile/IPFSStarter.java
  create mode 100644 third_party/agregore-ipfs-daemon/BUILD.gn
@@ -144,7 +145,7 @@ new file mode 100644
 index 0000000000..a3efe3a500
 --- /dev/null
 +++ b/chrome/android/java/src/moe/mauve/agregore/mobile/IPFSService.java
-@@ -0,0 +1,152 @@
+@@ -0,0 +1,153 @@
 +package moe.mauve.agregore.mobile;
 +
 +import android.os.Messenger;
@@ -172,6 +173,7 @@ index 0000000000..a3efe3a500
 +
 +public class IPFSService extends Service implements Handler.Callback {
 +	public static String TAG = "IPFSService";
++	public static String GATEWAY_PORT = "8080";
 +
 +	/**
 +	* Commands for the service to send over the Messenger
@@ -266,7 +268,7 @@ index 0000000000..a3efe3a500
 +		String interfaces = getInterfaces();
 +		Log.i(TAG, repoLocation);
 +		Log.i(TAG, interfaces);
-+		Gateway.run(repoLocation, interfaces);
++		Gateway.run(repoLocation, GATEWAY_PORT, interfaces);
 +	}
 +
 +	public void stopProcess() {
@@ -442,6 +444,36 @@ index 98043ddb5c..aa0f279dff 100644
          super.onDestroy();
      }
  
+diff --git a/chrome/android/trichrome.gni b/chrome/android/trichrome.gni
+index c3b67bc38a..cf70acfc80 100644
+--- a/chrome/android/trichrome.gni
++++ b/chrome/android/trichrome.gni
+@@ -126,6 +126,16 @@ template("trichrome_library_apk_tmpl") {
+       "//third_party/icu:icu_assets",
+     ]
+ 
++    # Agregore resources
++    deps += [ "//third_party/agregore-ipfs-daemon:agregore_ipfs_daemon_java" ]
++    if (!defined(loadable_modules)) {
++      loadable_modules = []
++    }
++    _agregore_ipfs_daemon_dir = get_label_info(
++                             "//third_party/agregore-ipfs-daemon:agregore_ipfs_daemon_java($default_toolchain)",
++                             "target_out_dir") + "/agregore_ipfs_daemon_java/jni"
++    loadable_modules += [ "$_agregore_ipfs_daemon_dir/armeabi-v7a/libgojni.so" ]
++
+     # Flag whether additional deps and libs should be included for each ABI.
+     _include_primary_support = false
+     _include_secondary_support = false
+@@ -159,7 +169,7 @@ template("trichrome_library_apk_tmpl") {
+         "//chrome/android:chrome_public_v8_assets",
+         "//third_party/crashpad/crashpad/handler:crashpad_handler_trampoline",
+       ]
+-      loadable_modules = [ "$root_out_dir/libcrashpad_handler_trampoline.so" ]
++      loadable_modules += [ "$root_out_dir/libcrashpad_handler_trampoline.so" ]
+     }
+     if (_include_secondary_support) {
+       _trampoline =
 diff --git a/third_party/agregore-ipfs-daemon/BUILD.gn b/third_party/agregore-ipfs-daemon/BUILD.gn
 new file mode 100644
 index 0000000000..abdac2b60b
@@ -726,5 +758,5 @@ index 761eb9511d..009269c15b 100644
 \ No newline at end of file
 +}
 -- 
-2.32.0
+2.34.1
 
