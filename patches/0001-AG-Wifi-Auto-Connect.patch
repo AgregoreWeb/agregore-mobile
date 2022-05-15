@@ -1,0 +1,618 @@
+From 71150a935ce9e1f27a538164ad1caeddc12df44a Mon Sep 17 00:00:00 2001
+From: mauve <ranger@mauve.moe>
+Date: Sat, 23 Apr 2022 01:34:51 -0400
+Subject: [PATCH] AG Wifi Auto Connect
+
+---
+ .gitignore                                    |   2 +
+ build/config/android/config.gni               |   2 +-
+ chrome/android/BUILD.gn                       |   3 +-
+ chrome/android/chrome_java_resources.gni      |   1 +
+ chrome/android/chrome_public_apk_tmpl.gni     |   5 +-
+ chrome/android/java/AndroidManifest.xml       |   6 +
+ .../java/res/drawable/wifi_auto_connect.xml   |  13 ++
+ chrome/android/java/res/menu/main_menu.xml    |   3 +
+ .../mauve/agregore/mobile/IPFSService.java    |   7 +
+ .../mauve/agregore/mobile/IPFSStarter.java    |   4 +
+ .../chrome/browser/ChromeTabbedActivity.java  |  26 +++
+ .../chrome/browser/app/ChromeActivity.java    |  39 ++++
+ .../strings/android_chrome_strings.grd        |   3 +
+ third_party/wifi_autoconnect/BUILD.gn         |   9 +
+ third_party/wifi_autoconnect/LICENSE          | 201 ++++++++++++++++++
+ third_party/wifi_autoconnect/OWNERS           |   2 +
+ third_party/wifi_autoconnect/README.chromium  |   3 +
+ .../wifi_autoconnect/WifiAutoConnect.info     |  14 ++
+ third_party/wifi_autoconnect/cipd.yaml        |   4 +
+ 19 files changed, 344 insertions(+), 3 deletions(-)
+ create mode 100644 chrome/android/java/res/drawable/wifi_auto_connect.xml
+ create mode 100644 third_party/wifi_autoconnect/BUILD.gn
+ create mode 100644 third_party/wifi_autoconnect/LICENSE
+ create mode 100644 third_party/wifi_autoconnect/OWNERS
+ create mode 100644 third_party/wifi_autoconnect/README.chromium
+ create mode 100644 third_party/wifi_autoconnect/WifiAutoConnect.info
+ create mode 100644 third_party/wifi_autoconnect/cipd.yaml
+
+diff --git a/.gitignore b/.gitignore
+index 52f5a6157a..de6fe1c969 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -340,3 +340,5 @@ vs-chromium-project.txt
+ 
+ # Ignore agregore gateway binary since it's downloaded outside of git
+ third_party/agregore-ipfs-daemon/agregore-ipfs-daemon.aar
++# Ignore wifi_autoconnect binary since it's downloaded outside of git
++third_party/wifi_autoconnect/WifiAutoConnect.aar
+diff --git a/build/config/android/config.gni b/build/config/android/config.gni
+index 5fa6099883..469b8080a4 100644
+--- a/build/config/android/config.gni
++++ b/build/config/android/config.gni
+@@ -49,7 +49,7 @@ if (is_android || is_chromeos) {
+ 
+     # The default to use for android:minSdkVersion for targets that do
+     # not explicitly set it.
+-    default_min_sdk_version = 23
++    default_min_sdk_version = 29
+ 
+     # Static analysis can be either "on" or "off" or "build_server". This
+     # controls how android lint, error-prone, bytecode checks are run. This
+diff --git a/chrome/android/BUILD.gn b/chrome/android/BUILD.gn
+index a75c19ef61..4a071c9127 100644
+--- a/chrome/android/BUILD.gn
++++ b/chrome/android/BUILD.gn
+@@ -631,8 +631,9 @@ android_library("chrome_java") {
+     "//third_party/blink/public/mojom:mojom_platform_java",
+     "//third_party/gif_player:gif_player_java",
+     "//third_party/metrics_proto:metrics_proto_java",
+-    # Add Agregore IPFS gateway to chrome deps
++    # Add Agregore IPFS gateway and WifiAutoConnect to chrome deps
+     "//third_party/agregore-ipfs-daemon:agregore_ipfs_daemon_java",
++    "//third_party/wifi_autoconnect:wifi_auto_connect_java",
+     "//ui/android:ui_java",
+     "//ui/base/mojom:mojom_java",
+     "//ui/gfx/geometry/mojom:mojom_java",
+diff --git a/chrome/android/chrome_java_resources.gni b/chrome/android/chrome_java_resources.gni
+index d79b1e31eb..b19308135c 100644
+--- a/chrome/android/chrome_java_resources.gni
++++ b/chrome/android/chrome_java_resources.gni
+@@ -477,6 +477,7 @@ chrome_java_resources = [
+   "java/res/drawable/tab_indicator.xml",
+   "java/res/drawable/tile_view_hairline_border_background.xml",
+   "java/res/drawable/toolbar_shadow.xml",
++  "java/res/drawable/wifi_auto_connect.xml",
+   "java/res/drawable/virtual_card_enrollment_illustration.xml",
+   "java/res/layout-sw360dp/preference_spinner_single_line.xml",
+   "java/res/layout-sw600dp/find_toolbar.xml",
+diff --git a/chrome/android/chrome_public_apk_tmpl.gni b/chrome/android/chrome_public_apk_tmpl.gni
+index 011248d364..511d85db1a 100644
+--- a/chrome/android/chrome_public_apk_tmpl.gni
++++ b/chrome/android/chrome_public_apk_tmpl.gni
+@@ -190,7 +190,10 @@ template("chrome_public_common_apk_or_module_tmpl") {
+     _material_package = "*com_google_android_material*"
+ 
+     # Agregore resources
+-    deps += [ "//third_party/agregore-ipfs-daemon:agregore_ipfs_daemon_java" ]
++    deps += [
++      "//third_party/agregore-ipfs-daemon:agregore_ipfs_daemon_java",
++      "//third_party/wifi_autoconnect:wifi_auto_connect_java"
++    ]
+     if (!defined(loadable_modules)) {
+       loadable_modules = []
+     }
+diff --git a/chrome/android/java/AndroidManifest.xml b/chrome/android/java/AndroidManifest.xml
+index 71eb475b0c..7ae4deb01b 100644
+--- a/chrome/android/java/AndroidManifest.xml
++++ b/chrome/android/java/AndroidManifest.xml
+@@ -29,6 +29,12 @@ by a child template that "extends" this file.
+ 
+     <!-- Required for local peer discovery -->
+     <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
++    <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES"
++                     android:usesPermissionFlags="neverForLocation"
++                     android:maxSdkVersion="32" />
++
++    <!-- Required to set up wifi auto connect hotspots -->
++    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+ 
+     <!--
+       Enable runtime permissions as uses-permission in tip of tree builds
+diff --git a/chrome/android/java/res/drawable/wifi_auto_connect.xml b/chrome/android/java/res/drawable/wifi_auto_connect.xml
+new file mode 100644
+index 0000000000..39f33575c2
+--- /dev/null
++++ b/chrome/android/java/res/drawable/wifi_auto_connect.xml
+@@ -0,0 +1,13 @@
++<vector
++    xmlns:android="http://schemas.android.com/apk/res/android"
++    android:name="vector"
++    android:width="512dp"
++    android:height="512dp"
++    android:viewportWidth="512"
++    android:viewportHeight="512">
++    <path
++        android:name="path"
++        android:pathData="M 380.6 365.6 C 401.1 379.9 416 404.3 416 432 C 416 476.2 380.2 512 336 512 C 291.8 512 256 476.2 256 432 C 256 423.6 257.3 415.4 259.7 407.8 L 114.1 280.4 C 103.8 285.3 92.21 288 80 288 C 35.82 288 0 252.2 0 208 C 0 163.8 35.82 128 80 128 C 101.9 128 121.7 136.8 136.2 151.1 L 320 77.52 C 321.3 34.48 356.6 0 400 0 C 444.2 0 480 35.82 480 80 C 480 117.9 453.7 149.6 418.4 157.9 L 380.6 365.6 Z M 156.3 232.2 L 301.9 359.6 C 306.9 357.3 312.1 355.4 317.6 354.1 L 355.4 146.4 C 351.2 143.6 347.4 140.4 343.8 136.9 L 159.1 210.5 C 159.7 218 158.5 225.3 156.3 232.2 Z"
++        android:fillColor="#000"
++        android:strokeWidth="1"/>
++</vector>
+diff --git a/chrome/android/java/res/menu/main_menu.xml b/chrome/android/java/res/menu/main_menu.xml
+index 2e820d1d31..1b4c0c99ae 100644
+--- a/chrome/android/java/res/menu/main_menu.xml
++++ b/chrome/android/java/res/menu/main_menu.xml
+@@ -35,6 +35,9 @@
+                 android:icon="@drawable/btn_reload_stop"/>
+             </menu>
+         </item>
++        <item android:id="@+id/wifi_auto_connect_id"
++            android:title="@string/menu_wifi_auto_connect"
++            android:icon="@drawable/wifi_auto_connect" />
+         <item android:id="@+id/update_menu_id"
+             android:title="@string/menu_update"
+             android:icon="@drawable/menu_update" />
+diff --git a/chrome/android/java/src/moe/mauve/agregore/mobile/IPFSService.java b/chrome/android/java/src/moe/mauve/agregore/mobile/IPFSService.java
+index 86835b2e3f..6bbe0d7193 100644
+--- a/chrome/android/java/src/moe/mauve/agregore/mobile/IPFSService.java
++++ b/chrome/android/java/src/moe/mauve/agregore/mobile/IPFSService.java
+@@ -32,6 +32,7 @@ public class IPFSService extends Service implements Handler.Callback {
+ 	*/
+ 	public static final int START = 1;
+ 	public static final int STOP = 2;
++	public static final int RESTART = 3;
+ 
+ 	private Messenger messenger;
+ 	private WifiManager wifiManager = null;
+@@ -47,6 +48,12 @@ public class IPFSService extends Service implements Handler.Callback {
+ 		} else if(what == STOP) {
+ 				stopProcess();
+ 				return true;
++		} else if(what == RESTART) {
++			if(isRunning()) {
++				stopProcess();
++			}
++			startProcess();
++			return true;
+ 		} else {
+ 				Log.d(TAG, "Got unknown message type.");
+ 		}
+diff --git a/chrome/android/java/src/moe/mauve/agregore/mobile/IPFSStarter.java b/chrome/android/java/src/moe/mauve/agregore/mobile/IPFSStarter.java
+index 1e13a955e4..a9bf3ca01e 100644
+--- a/chrome/android/java/src/moe/mauve/agregore/mobile/IPFSStarter.java
++++ b/chrome/android/java/src/moe/mauve/agregore/mobile/IPFSStarter.java
+@@ -69,6 +69,10 @@ public class IPFSStarter {
+ 		this.sendMessage(IPFSService.STOP);
+ 	}
+ 
++	public void restartGateway() {
++		this.sendMessage(IPFSService.RESTART);
++	}
++
+ 	public void loadService(Context binder) {
+ 		loadService(binder, false);
+ 	}
+diff --git a/chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java b/chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java
+index 699bd11bf1..150ddb1631 100644
+--- a/chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java
++++ b/chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java
+@@ -217,6 +217,8 @@ import java.util.HashSet;
+ import java.util.List;
+ import java.util.Locale;
+ 
++import moe.mauve.agregore.wifiautoconnect.WifiAutoConnect;
++
+ import org.chromium.chrome.browser.ApplicationLifetime;
+ 
+ /**
+@@ -2023,6 +2025,24 @@ public class ChromeTabbedActivity extends ChromeActivity<ChromeActivityComponent
+         getTabModelSelector().getModel(true).closeAllTabs();
+     }
+ 
++    @Override
++    public void onWifiAutoConnectStateChange(int state) {
++        CharSequence newTitle = "";
++        if(state == WifiAutoConnect.STATE_CONNECTING) {
++            newTitle = "WIFI P2P: Connecting...";
++        } else if(state == WifiAutoConnect.STATE_CONNECTED) {
++            newTitle = "WIFI P2P: Connected";
++        } if(state == WifiAutoConnect.STATE_DISCONNECTED) {
++            newTitle = "WIFI P2P: Disconnected";
++        } if(state == WifiAutoConnect.STATE_ERROR) {
++            newTitle = "WIFI P2P: Error Connecting";
++        }
++
++        Toast
++            .makeText(ChromeTabbedActivity.this, newTitle, Toast.LENGTH_LONG)
++            .show();
++    }
++
+     @Override
+     public boolean onMenuOrKeyboardAction(final int id, boolean fromMenu) {
+         final Tab currentTab = getActivityTab();
+@@ -2104,6 +2124,12 @@ public class ChromeTabbedActivity extends ChromeActivity<ChromeActivityComponent
+             RecordUserAction.record("MobileTabClosed");
+         } else if (id == R.id.exit_id) {
+             ApplicationLifetime.terminate(false);
++        } else if (id == R.id.wifi_auto_connect_id) {
++           if (isWifiConnected()) {
++               disconnectWifi();
++           } else {
++               autoConnectWifi();
++           }
+         } else if (id == R.id.close_all_tabs_menu_id) {
+             if (ChromeFeatureList.isEnabled(ChromeFeatureList.CLOSE_ALL_TABS_MODAL_DIALOG)) {
+                 CloseAllTabsDialog.show(this, getModalDialogManagerSupplier(),
+diff --git a/chrome/android/java/src/org/chromium/chrome/browser/app/ChromeActivity.java b/chrome/android/java/src/org/chromium/chrome/browser/app/ChromeActivity.java
+index aa0f279dff..39d61d6f93 100644
+--- a/chrome/android/java/src/org/chromium/chrome/browser/app/ChromeActivity.java
++++ b/chrome/android/java/src/org/chromium/chrome/browser/app/ChromeActivity.java
+@@ -257,6 +257,7 @@ import java.util.List;
+ import java.util.function.Consumer;
+ 
+ import moe.mauve.agregore.mobile.IPFSStarter;
++import moe.mauve.agregore.wifiautoconnect.WifiAutoConnect;
+ 
+ /**
+  * A {@link AsyncInitializationActivity} that builds and manages a {@link CompositorViewHolder}
+@@ -402,12 +403,26 @@ public abstract class ChromeActivity<C extends ChromeActivityComponent>
+ 
+     // Agregore related variables
+     private IPFSStarter ipfs = new IPFSStarter();
++    private WifiAutoConnect wifiAutoConnect = null;
+ 
+     protected ChromeActivity() {
+         mIntentHandler = new IntentHandler(this, createIntentHandlerDelegate());
+         mManualFillingComponentSupplier.set(ManualFillingComponentFactory.createComponent());
+     }
+ 
++    // Callback that gets invoked when the wifi state changes
++    public void onWifiAutoConnectStateChange(int state) {}
++    public void autoConnectWifi() {
++        wifiAutoConnect.autoConnect();
++    }
++    public void disconnectWifi() {
++        wifiAutoConnect.disconnect();
++    }
++    public boolean isWifiConnected() {
++        if (wifiAutoConnect == null) return false;
++        return wifiAutoConnect.getState() == WifiAutoConnect.STATE_CONNECTED;
++    }
++
+     @Override
+     protected void onPreCreate() {
+         CachedFeatureFlags.onStartOrResumeCheckpoint();
+@@ -1157,6 +1172,10 @@ public abstract class ChromeActivity<C extends ChromeActivityComponent>
+         }
+         VrModuleProvider.getDelegate().maybeRegisterVrEntryHook(this);
+ 
++        if (wifiAutoConnect != null) {
++            wifiAutoConnect.onResume();
++        }
++
+         getManualFillingComponent().onResume();
+     }
+ 
+@@ -1218,6 +1237,10 @@ public abstract class ChromeActivity<C extends ChromeActivityComponent>
+         if (tab != null) getTabContentManager().cacheTabThumbnail(tab);
+         getManualFillingComponent().onPause();
+ 
++        if (wifiAutoConnect != null) {
++            wifiAutoConnect.onPause();
++        }
++
+         VrModuleProvider.getDelegate().maybeUnregisterVrEntryHook();
+         markSessionEnd();
+ 
+@@ -1317,6 +1340,18 @@ public abstract class ChromeActivity<C extends ChromeActivityComponent>
+ 
+             // Load IPFS service and autostart the gateway
+             ipfs.loadService(this, true);
++            wifiAutoConnect = new WifiAutoConnect(this);
++            wifiAutoConnect.setStateChangeListener(new WifiAutoConnect.WifiAutoConnectStateChangeListener(){
++                @Override
++                public void onStateChange(int state) {
++                    if(state == WifiAutoConnect.STATE_CONNECTED || state == WifiAutoConnect.STATE_DISCONNECTED) {
++                        ipfs.restartGateway();
++                    }
++                    onWifiAutoConnectStateChange(state);
++                }
++            });
++            wifiAutoConnect.onResume();
++
+ 
+             FontSizePrefs.getInstance(Profile.getLastUsedRegularProfile())
+                     .recordUserFontPrefOnStartup();
+@@ -1578,6 +1613,10 @@ public abstract class ChromeActivity<C extends ChromeActivityComponent>
+         if (ipfs.isBound()) {
+             ipfs.unloadService();
+         }
++        // Disconnect and destroy wifi access point if one exists
++        if (wifiAutoConnect != null) {
++            disconnectWifi();
++        }
+ 
+         super.onDestroy();
+     }
+diff --git a/chrome/browser/ui/android/strings/android_chrome_strings.grd b/chrome/browser/ui/android/strings/android_chrome_strings.grd
+index e2a5bc0966..a256015dd4 100644
+--- a/chrome/browser/ui/android/strings/android_chrome_strings.grd
++++ b/chrome/browser/ui/android/strings/android_chrome_strings.grd
+@@ -3461,6 +3461,9 @@ To change this setting, <ph name="BEGIN_LINK">&lt;resetlink&gt;</ph>reset sync<p
+       <message name="IDS_MENU_BOOKMARK_ALL_TABS" desc="Menu item to bookmark all tabs. [CHAR-LIMIT=27]">
+         Bookmark all tabs
+       </message>
++      <message name="IDS_MENU_WIFI_AUTO_CONNECT" desc="Menu item to automatically connect to nearby devices. [CHAR-LIMIT=27]">
++        Auto-connect nearby devices
++      </message>
+       <message name="IDS_MENU_GET_IMAGE_DESCRIPTIONS" desc="Menu item to start getting alt text accessibility image labels/descriptions [CHAR_LIMIT=27]">
+         Get image descriptions
+       </message>
+diff --git a/third_party/wifi_autoconnect/BUILD.gn b/third_party/wifi_autoconnect/BUILD.gn
+new file mode 100644
+index 0000000000..75ddef7ebb
+--- /dev/null
++++ b/third_party/wifi_autoconnect/BUILD.gn
+@@ -0,0 +1,9 @@
++# Wifi Auto Connect
++
++import("//build/config/android/rules.gni")
++
++android_aar_prebuilt("wifi_auto_connect_java") {
++  aar_path = "WifiAutoConnect.aar"
++  info_path = "WifiAutoConnect.info"
++  extract_native_libraries = true
++}
+diff --git a/third_party/wifi_autoconnect/LICENSE b/third_party/wifi_autoconnect/LICENSE
+new file mode 100644
+index 0000000000..261eeb9e9f
+--- /dev/null
++++ b/third_party/wifi_autoconnect/LICENSE
+@@ -0,0 +1,201 @@
++                                 Apache License
++                           Version 2.0, January 2004
++                        http://www.apache.org/licenses/
++
++   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
++
++   1. Definitions.
++
++      "License" shall mean the terms and conditions for use, reproduction,
++      and distribution as defined by Sections 1 through 9 of this document.
++
++      "Licensor" shall mean the copyright owner or entity authorized by
++      the copyright owner that is granting the License.
++
++      "Legal Entity" shall mean the union of the acting entity and all
++      other entities that control, are controlled by, or are under common
++      control with that entity. For the purposes of this definition,
++      "control" means (i) the power, direct or indirect, to cause the
++      direction or management of such entity, whether by contract or
++      otherwise, or (ii) ownership of fifty percent (50%) or more of the
++      outstanding shares, or (iii) beneficial ownership of such entity.
++
++      "You" (or "Your") shall mean an individual or Legal Entity
++      exercising permissions granted by this License.
++
++      "Source" form shall mean the preferred form for making modifications,
++      including but not limited to software source code, documentation
++      source, and configuration files.
++
++      "Object" form shall mean any form resulting from mechanical
++      transformation or translation of a Source form, including but
++      not limited to compiled object code, generated documentation,
++      and conversions to other media types.
++
++      "Work" shall mean the work of authorship, whether in Source or
++      Object form, made available under the License, as indicated by a
++      copyright notice that is included in or attached to the work
++      (an example is provided in the Appendix below).
++
++      "Derivative Works" shall mean any work, whether in Source or Object
++      form, that is based on (or derived from) the Work and for which the
++      editorial revisions, annotations, elaborations, or other modifications
++      represent, as a whole, an original work of authorship. For the purposes
++      of this License, Derivative Works shall not include works that remain
++      separable from, or merely link (or bind by name) to the interfaces of,
++      the Work and Derivative Works thereof.
++
++      "Contribution" shall mean any work of authorship, including
++      the original version of the Work and any modifications or additions
++      to that Work or Derivative Works thereof, that is intentionally
++      submitted to Licensor for inclusion in the Work by the copyright owner
++      or by an individual or Legal Entity authorized to submit on behalf of
++      the copyright owner. For the purposes of this definition, "submitted"
++      means any form of electronic, verbal, or written communication sent
++      to the Licensor or its representatives, including but not limited to
++      communication on electronic mailing lists, source code control systems,
++      and issue tracking systems that are managed by, or on behalf of, the
++      Licensor for the purpose of discussing and improving the Work, but
++      excluding communication that is conspicuously marked or otherwise
++      designated in writing by the copyright owner as "Not a Contribution."
++
++      "Contributor" shall mean Licensor and any individual or Legal Entity
++      on behalf of whom a Contribution has been received by Licensor and
++      subsequently incorporated within the Work.
++
++   2. Grant of Copyright License. Subject to the terms and conditions of
++      this License, each Contributor hereby grants to You a perpetual,
++      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
++      copyright license to reproduce, prepare Derivative Works of,
++      publicly display, publicly perform, sublicense, and distribute the
++      Work and such Derivative Works in Source or Object form.
++
++   3. Grant of Patent License. Subject to the terms and conditions of
++      this License, each Contributor hereby grants to You a perpetual,
++      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
++      (except as stated in this section) patent license to make, have made,
++      use, offer to sell, sell, import, and otherwise transfer the Work,
++      where such license applies only to those patent claims licensable
++      by such Contributor that are necessarily infringed by their
++      Contribution(s) alone or by combination of their Contribution(s)
++      with the Work to which such Contribution(s) was submitted. If You
++      institute patent litigation against any entity (including a
++      cross-claim or counterclaim in a lawsuit) alleging that the Work
++      or a Contribution incorporated within the Work constitutes direct
++      or contributory patent infringement, then any patent licenses
++      granted to You under this License for that Work shall terminate
++      as of the date such litigation is filed.
++
++   4. Redistribution. You may reproduce and distribute copies of the
++      Work or Derivative Works thereof in any medium, with or without
++      modifications, and in Source or Object form, provided that You
++      meet the following conditions:
++
++      (a) You must give any other recipients of the Work or
++          Derivative Works a copy of this License; and
++
++      (b) You must cause any modified files to carry prominent notices
++          stating that You changed the files; and
++
++      (c) You must retain, in the Source form of any Derivative Works
++          that You distribute, all copyright, patent, trademark, and
++          attribution notices from the Source form of the Work,
++          excluding those notices that do not pertain to any part of
++          the Derivative Works; and
++
++      (d) If the Work includes a "NOTICE" text file as part of its
++          distribution, then any Derivative Works that You distribute must
++          include a readable copy of the attribution notices contained
++          within such NOTICE file, excluding those notices that do not
++          pertain to any part of the Derivative Works, in at least one
++          of the following places: within a NOTICE text file distributed
++          as part of the Derivative Works; within the Source form or
++          documentation, if provided along with the Derivative Works; or,
++          within a display generated by the Derivative Works, if and
++          wherever such third-party notices normally appear. The contents
++          of the NOTICE file are for informational purposes only and
++          do not modify the License. You may add Your own attribution
++          notices within Derivative Works that You distribute, alongside
++          or as an addendum to the NOTICE text from the Work, provided
++          that such additional attribution notices cannot be construed
++          as modifying the License.
++
++      You may add Your own copyright statement to Your modifications and
++      may provide additional or different license terms and conditions
++      for use, reproduction, or distribution of Your modifications, or
++      for any such Derivative Works as a whole, provided Your use,
++      reproduction, and distribution of the Work otherwise complies with
++      the conditions stated in this License.
++
++   5. Submission of Contributions. Unless You explicitly state otherwise,
++      any Contribution intentionally submitted for inclusion in the Work
++      by You to the Licensor shall be under the terms and conditions of
++      this License, without any additional terms or conditions.
++      Notwithstanding the above, nothing herein shall supersede or modify
++      the terms of any separate license agreement you may have executed
++      with Licensor regarding such Contributions.
++
++   6. Trademarks. This License does not grant permission to use the trade
++      names, trademarks, service marks, or product names of the Licensor,
++      except as required for reasonable and customary use in describing the
++      origin of the Work and reproducing the content of the NOTICE file.
++
++   7. Disclaimer of Warranty. Unless required by applicable law or
++      agreed to in writing, Licensor provides the Work (and each
++      Contributor provides its Contributions) on an "AS IS" BASIS,
++      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
++      implied, including, without limitation, any warranties or conditions
++      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
++      PARTICULAR PURPOSE. You are solely responsible for determining the
++      appropriateness of using or redistributing the Work and assume any
++      risks associated with Your exercise of permissions under this License.
++
++   8. Limitation of Liability. In no event and under no legal theory,
++      whether in tort (including negligence), contract, or otherwise,
++      unless required by applicable law (such as deliberate and grossly
++      negligent acts) or agreed to in writing, shall any Contributor be
++      liable to You for damages, including any direct, indirect, special,
++      incidental, or consequential damages of any character arising as a
++      result of this License or out of the use or inability to use the
++      Work (including but not limited to damages for loss of goodwill,
++      work stoppage, computer failure or malfunction, or any and all
++      other commercial damages or losses), even if such Contributor
++      has been advised of the possibility of such damages.
++
++   9. Accepting Warranty or Additional Liability. While redistributing
++      the Work or Derivative Works thereof, You may choose to offer,
++      and charge a fee for, acceptance of support, warranty, indemnity,
++      or other liability obligations and/or rights consistent with this
++      License. However, in accepting such obligations, You may act only
++      on Your own behalf and on Your sole responsibility, not on behalf
++      of any other Contributor, and only if You agree to indemnify,
++      defend, and hold each Contributor harmless for any liability
++      incurred by, or claims asserted against, such Contributor by reason
++      of your accepting any such warranty or additional liability.
++
++   END OF TERMS AND CONDITIONS
++
++   APPENDIX: How to apply the Apache License to your work.
++
++      To apply the Apache License to your work, attach the following
++      boilerplate notice, with the fields enclosed by brackets "[]"
++      replaced with your own identifying information. (Don't include
++      the brackets!)  The text should be enclosed in the appropriate
++      comment syntax for the file format. We also recommend that a
++      file or class name and description of purpose be included on the
++      same "printed page" as the copyright notice for easier
++      identification within third-party archives.
++
++   Copyright [yyyy] [name of copyright owner]
++
++   Licensed under the Apache License, Version 2.0 (the "License");
++   you may not use this file except in compliance with the License.
++   You may obtain a copy of the License at
++
++       http://www.apache.org/licenses/LICENSE-2.0
++
++   Unless required by applicable law or agreed to in writing, software
++   distributed under the License is distributed on an "AS IS" BASIS,
++   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++   See the License for the specific language governing permissions and
++   limitations under the License.
+diff --git a/third_party/wifi_autoconnect/OWNERS b/third_party/wifi_autoconnect/OWNERS
+new file mode 100644
+index 0000000000..08e303b54b
+--- /dev/null
++++ b/third_party/wifi_autoconnect/OWNERS
+@@ -0,0 +1,2 @@
++# For changes and questions
++contact@mauve.moe
+diff --git a/third_party/wifi_autoconnect/README.chromium b/third_party/wifi_autoconnect/README.chromium
+new file mode 100644
+index 0000000000..dcb0448ccb
+--- /dev/null
++++ b/third_party/wifi_autoconnect/README.chromium
+@@ -0,0 +1,3 @@
++# Wifi Auto Connect
++
++https://github.com/RangerMauve/WifiAutoConnect-Android
+diff --git a/third_party/wifi_autoconnect/WifiAutoConnect.info b/third_party/wifi_autoconnect/WifiAutoConnect.info
+new file mode 100644
+index 0000000000..0c1a5726f6
+--- /dev/null
++++ b/third_party/wifi_autoconnect/WifiAutoConnect.info
+@@ -0,0 +1,14 @@
++# Generated by //build/android/gyp/aar.py
++# To regenerate, use "update_android_aar_prebuilts = true" and run "gn gen".
++
++aidl = []
++assets = []
++has_classes_jar = true
++has_native_libraries = false
++has_proguard_flags = true
++has_r_text_file = false
++is_manifest_empty = false
++manifest_package = "moe.mauve.agregore.wifiautoconnect"
++resources = []
++subjar_tuples = []
++subjars = []
+diff --git a/third_party/wifi_autoconnect/cipd.yaml b/third_party/wifi_autoconnect/cipd.yaml
+new file mode 100644
+index 0000000000..d209c96027
+--- /dev/null
++++ b/third_party/wifi_autoconnect/cipd.yaml
+@@ -0,0 +1,4 @@
++package: chromium/third_party/wifi_autoconnect
++description: Wifi AutoConnect Android
++data:
++  - file: "WifiAutoConnect.aar"
+-- 
+2.34.1
+
