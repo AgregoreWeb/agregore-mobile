@@ -1,4 +1,4 @@
-From 85d0dec7beb22380b434fd6a603a0e7717600ad7 Mon Sep 17 00:00:00 2001
+From 71150a935ce9e1f27a538164ad1caeddc12df44a Mon Sep 17 00:00:00 2001
 From: mauve <ranger@mauve.moe>
 Date: Sat, 23 Apr 2022 01:34:51 -0400
 Subject: [PATCH] AG Wifi Auto Connect
@@ -14,7 +14,7 @@ Subject: [PATCH] AG Wifi Auto Connect
  chrome/android/java/res/menu/main_menu.xml    |   3 +
  .../mauve/agregore/mobile/IPFSService.java    |   7 +
  .../mauve/agregore/mobile/IPFSStarter.java    |   4 +
- .../chrome/browser/ChromeTabbedActivity.java  |  36 ++++
+ .../chrome/browser/ChromeTabbedActivity.java  |  26 +++
  .../chrome/browser/app/ChromeActivity.java    |  39 ++++
  .../strings/android_chrome_strings.grd        |   3 +
  third_party/wifi_autoconnect/BUILD.gn         |   9 +
@@ -23,7 +23,7 @@ Subject: [PATCH] AG Wifi Auto Connect
  third_party/wifi_autoconnect/README.chromium  |   3 +
  .../wifi_autoconnect/WifiAutoConnect.info     |  14 ++
  third_party/wifi_autoconnect/cipd.yaml        |   4 +
- 19 files changed, 354 insertions(+), 3 deletions(-)
+ 19 files changed, 344 insertions(+), 3 deletions(-)
  create mode 100644 chrome/android/java/res/drawable/wifi_auto_connect.xml
  create mode 100644 third_party/wifi_autoconnect/BUILD.gn
  create mode 100644 third_party/wifi_autoconnect/LICENSE
@@ -99,7 +99,7 @@ index 011248d364..511d85db1a 100644
        loadable_modules = []
      }
 diff --git a/chrome/android/java/AndroidManifest.xml b/chrome/android/java/AndroidManifest.xml
-index 1278803e28..9d36f4ce12 100644
+index 71eb475b0c..7ae4deb01b 100644
 --- a/chrome/android/java/AndroidManifest.xml
 +++ b/chrome/android/java/AndroidManifest.xml
 @@ -29,6 +29,12 @@ by a child template that "extends" this file.
@@ -149,10 +149,10 @@ index 2e820d1d31..1b4c0c99ae 100644
              android:title="@string/menu_update"
              android:icon="@drawable/menu_update" />
 diff --git a/chrome/android/java/src/moe/mauve/agregore/mobile/IPFSService.java b/chrome/android/java/src/moe/mauve/agregore/mobile/IPFSService.java
-index a3efe3a500..1c82eaaf2a 100644
+index 86835b2e3f..6bbe0d7193 100644
 --- a/chrome/android/java/src/moe/mauve/agregore/mobile/IPFSService.java
 +++ b/chrome/android/java/src/moe/mauve/agregore/mobile/IPFSService.java
-@@ -31,6 +31,7 @@ public class IPFSService extends Service implements Handler.Callback {
+@@ -32,6 +32,7 @@ public class IPFSService extends Service implements Handler.Callback {
  	*/
  	public static final int START = 1;
  	public static final int STOP = 2;
@@ -160,7 +160,7 @@ index a3efe3a500..1c82eaaf2a 100644
  
  	private Messenger messenger;
  	private WifiManager wifiManager = null;
-@@ -46,6 +47,12 @@ public class IPFSService extends Service implements Handler.Callback {
+@@ -47,6 +48,12 @@ public class IPFSService extends Service implements Handler.Callback {
  		} else if(what == STOP) {
  				stopProcess();
  				return true;
@@ -189,18 +189,10 @@ index 1e13a955e4..a9bf3ca01e 100644
  		loadService(binder, false);
  	}
 diff --git a/chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java b/chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java
-index 699bd11bf1..77caf7397c 100644
+index 699bd11bf1..150ddb1631 100644
 --- a/chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java
 +++ b/chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java
-@@ -19,6 +19,7 @@ import android.util.Pair;
- import android.view.KeyEvent;
- import android.view.KeyboardShortcutGroup;
- import android.view.Menu;
-+import android.view.MenuItem;
- import android.view.View;
- import android.view.View.OnClickListener;
- import android.view.ViewConfiguration;
-@@ -217,6 +218,8 @@ import java.util.HashSet;
+@@ -217,6 +217,8 @@ import java.util.HashSet;
  import java.util.List;
  import java.util.Locale;
  
@@ -209,41 +201,32 @@ index 699bd11bf1..77caf7397c 100644
  import org.chromium.chrome.browser.ApplicationLifetime;
  
  /**
-@@ -2023,6 +2026,33 @@ public class ChromeTabbedActivity extends ChromeActivity<ChromeActivityComponent
+@@ -2023,6 +2025,24 @@ public class ChromeTabbedActivity extends ChromeActivity<ChromeActivityComponent
          getTabModelSelector().getModel(true).closeAllTabs();
      }
  
 +    @Override
 +    public void onWifiAutoConnectStateChange(int state) {
-+        MenuItem item = (MenuItem) findViewById(R.id.new_tab_menu_id);
-+
 +        CharSequence newTitle = "";
 +        if(state == WifiAutoConnect.STATE_CONNECTING) {
-+            newTitle = "Connecting...";
++            newTitle = "WIFI P2P: Connecting...";
 +        } else if(state == WifiAutoConnect.STATE_CONNECTED) {
-+            newTitle = "Connected";
++            newTitle = "WIFI P2P: Connected";
 +        } if(state == WifiAutoConnect.STATE_DISCONNECTED) {
-+            newTitle = "Disconnected";
++            newTitle = "WIFI P2P: Disconnected";
 +        } if(state == WifiAutoConnect.STATE_ERROR) {
-+            newTitle = "Error Connecting";
++            newTitle = "WIFI P2P: Error Connecting";
 +        }
 +
 +        Toast
-+            .makeText(ChromeTabbedActivity.this, newTitle, Toast.LENGTH_SHORT)
++            .makeText(ChromeTabbedActivity.this, newTitle, Toast.LENGTH_LONG)
 +            .show();
-+
-+        if(item == null) {
-+          // Menu must not be open?
-+          // TODO: Set the initial state on menu open
-+          return;
-+        }
-+        item.setTitle(newTitle);
 +    }
 +
      @Override
      public boolean onMenuOrKeyboardAction(final int id, boolean fromMenu) {
          final Tab currentTab = getActivityTab();
-@@ -2104,6 +2134,12 @@ public class ChromeTabbedActivity extends ChromeActivity<ChromeActivityComponent
+@@ -2104,6 +2124,12 @@ public class ChromeTabbedActivity extends ChromeActivity<ChromeActivityComponent
              RecordUserAction.record("MobileTabClosed");
          } else if (id == R.id.exit_id) {
              ApplicationLifetime.terminate(false);
