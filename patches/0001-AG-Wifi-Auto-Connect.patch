@@ -1,4 +1,4 @@
-From 71150a935ce9e1f27a538164ad1caeddc12df44a Mon Sep 17 00:00:00 2001
+From 6a1c5a1158c9b74b9c5841220da0ce5d6f1f8042 Mon Sep 17 00:00:00 2001
 From: mauve <ranger@mauve.moe>
 Date: Sat, 23 Apr 2022 01:34:51 -0400
 Subject: [PATCH] AG Wifi Auto Connect
@@ -23,7 +23,8 @@ Subject: [PATCH] AG Wifi Auto Connect
  third_party/wifi_autoconnect/README.chromium  |   3 +
  .../wifi_autoconnect/WifiAutoConnect.info     |  14 ++
  third_party/wifi_autoconnect/cipd.yaml        |   4 +
- 19 files changed, 344 insertions(+), 3 deletions(-)
+ url/gurl.cc                                   |   8 +-
+ 20 files changed, 348 insertions(+), 7 deletions(-)
  create mode 100644 chrome/android/java/res/drawable/wifi_auto_connect.xml
  create mode 100644 third_party/wifi_autoconnect/BUILD.gn
  create mode 100644 third_party/wifi_autoconnect/LICENSE
@@ -613,6 +614,25 @@ index 0000000000..d209c96027
 +description: Wifi AutoConnect Android
 +data:
 +  - file: "WifiAutoConnect.aar"
+diff --git a/url/gurl.cc b/url/gurl.cc
+index 8b4239522e..5943b8ad10 100644
+--- a/url/gurl.cc
++++ b/url/gurl.cc
+@@ -377,10 +377,10 @@ bool GURL::SchemeIsCryptographic(base::StringPiece lower_ascii_scheme) {
+   DCHECK(base::ToLowerASCII(lower_ascii_scheme) == lower_ascii_scheme);
+ 
+   return lower_ascii_scheme == url::kHttpsScheme ||
+-         lower_ascii_scheme == url:kIpfsScheme ||
+-         lower_ascii_scheme == url:kIpnsScheme ||
+-         lower_ascii_scheme == url:kIpldScheme ||
+-         lower_ascii_scheme == url:kPubsubScheme ||
++         lower_ascii_scheme == url::kIpfsScheme ||
++         lower_ascii_scheme == url::kIpnsScheme ||
++         lower_ascii_scheme == url::kIpldScheme ||
++         lower_ascii_scheme == url::kPubsubScheme ||
+          lower_ascii_scheme == url::kWssScheme;
+ }
+ 
 -- 
 2.34.1
 
