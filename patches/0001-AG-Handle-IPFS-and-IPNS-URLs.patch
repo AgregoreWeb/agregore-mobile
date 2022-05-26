@@ -1,4 +1,4 @@
-From 8b34656522dab86da66ad191ee139913031af56c Mon Sep 17 00:00:00 2001
+From e5362a0ed40400744cefe1a334317cbe816b5cfd Mon Sep 17 00:00:00 2001
 From: Madrets <emmanuel.elite.46@gmail.com>
 Date: Thu, 21 Apr 2022 10:44:57 -0400
 Subject: [PATCH] AG Handle IPFS and IPNS URLs
@@ -6,18 +6,20 @@ Subject: [PATCH] AG Handle IPFS and IPNS URLs
 ---
  chrome/android/java/AndroidManifest.xml       |  4 ++
  chrome/browser/profiles/profile_io_data.cc    |  4 ++
- content/common/url_schemes.cc                 | 21 ++++++++++
- net/url_request/url_request.cc                |  5 +++
+ .../renderer_host/render_process_host_impl.cc |  5 ++
+ content/common/url_schemes.cc                 | 21 ++++++
+ net/url_request/url_request.cc                |  5 ++
  net/url_request/url_request.h                 |  1 +
- net/url_request/url_request_job_factory.cc    | 41 +++++++++++++++++++
+ net/url_request/url_request_job.cc            |  5 ++
+ net/url_request/url_request_job_factory.cc    | 23 +++++++
  services/network/public/cpp/url_util.cc       |  2 +-
- .../platform/weborigin/scheme_registry.cc     |  8 ++--
- url/gurl.cc                                   |  8 ++++
- url/gurl.h                                    |  3 ++
+ .../platform/weborigin/scheme_registry.cc     |  8 ++-
+ url/gurl.cc                                   | 67 +++++++++++++++++++
+ url/gurl.h                                    | 11 +++
  url/url_constants.cc                          |  4 ++
  url/url_constants.h                           |  4 ++
- url/url_util.cc                               | 14 +++++++
- 13 files changed, 115 insertions(+), 4 deletions(-)
+ url/url_util.cc                               | 14 ++++
+ 15 files changed, 174 insertions(+), 4 deletions(-)
 
 diff --git a/chrome/android/java/AndroidManifest.xml b/chrome/android/java/AndroidManifest.xml
 index 1278803e28..71eb475b0c 100644
@@ -49,6 +51,22 @@ index 242c2e3f1f..fcf2813f3b 100644
  #if BUILDFLAG(ENABLE_WEBSOCKETS)
      url::kWsScheme,
      url::kWssScheme,
+diff --git a/content/browser/renderer_host/render_process_host_impl.cc b/content/browser/renderer_host/render_process_host_impl.cc
+index 1df0f19458..0050999f93 100644
+--- a/content/browser/renderer_host/render_process_host_impl.cc
++++ b/content/browser/renderer_host/render_process_host_impl.cc
+@@ -4182,6 +4182,11 @@ void RenderProcessHostImpl::FilterURL(RenderProcessHost* rph,
+   if (empty_allowed && url->is_empty())
+     return;
+ 
++  // Allow anything to link to IPFS URLs
++  if (url->SchemeIsIPFSP2P()) {
++    return;
++  }
++
+   if (!url->is_valid()) {
+     // Have to use about:blank for the denied case, instead of an empty GURL.
+     // This is because the browser treats navigation to an empty GURL as a
 diff --git a/content/common/url_schemes.cc b/content/common/url_schemes.cc
 index e59440185a..d4dd43afb9 100644
 --- a/content/common/url_schemes.cc
@@ -137,8 +155,24 @@ index b4bf5651be..61de4b1d44 100644
  
    // The URL that should be consulted for the third-party cookie blocking
    // policy, as defined in Section 2.1.1 and 2.1.2 of
+diff --git a/net/url_request/url_request_job.cc b/net/url_request/url_request_job.cc
+index 29d39eae46..4039e25fea 100644
+--- a/net/url_request/url_request_job.cc
++++ b/net/url_request/url_request_job.cc
+@@ -321,6 +321,11 @@ GURL URLRequestJob::ComputeReferrerForPolicy(
+ 
+   bool same_origin = url::IsSameOriginWith(original_referrer, destination);
+ 
++  // IPFS origins can just get each others referrer
++  if (original_referrer.SchemeIsIPFSP2P() && destination.IsIPFSGateway()) {
++    return MaybeStripToOrigin(std::move(stripped_referrer), should_strip_to_origin);
++  }
++
+   if (same_origin_out_for_metrics)
+     *same_origin_out_for_metrics = same_origin;
+ 
 diff --git a/net/url_request/url_request_job_factory.cc b/net/url_request/url_request_job_factory.cc
-index 079187d608..c6f7b6bdaa 100644
+index 079187d608..4b96766e00 100644
 --- a/net/url_request/url_request_job_factory.cc
 +++ b/net/url_request/url_request_job_factory.cc
 @@ -14,6 +14,9 @@
@@ -151,44 +185,26 @@ index 079187d608..c6f7b6bdaa 100644
  namespace net {
  
  namespace {
-@@ -40,6 +43,36 @@ class HttpProtocolHandler : public URLRequestJobFactory::ProtocolHandler {
+@@ -40,6 +43,18 @@ class HttpProtocolHandler : public URLRequestJobFactory::ProtocolHandler {
        return std::make_unique<URLRequestErrorJob>(request,
                                                    ERR_UNKNOWN_URL_SCHEME);
      }
 +
 +    // Handle ipfs, ipns, ipld, and pubsub URLs
 +    const GURL& url = request->url();
-+    std::string scheme(url.scheme());
 +
-+    if (scheme == url::kIpfsScheme || scheme == url::kIpnsScheme ||
-+        scheme == url::kIpldScheme || scheme == url::kPubsubScheme) {
-+      std::string host(url.host());
-+      std::string path(url.path());
-+
++    // For IPFS P2P URLs, replace the URL chain to have the gateway URL instead
++    if (url.SchemeIsIPFSP2P()) {
 +      std::vector<GURL> url_chain = {};
 +      url_chain.push_back(url);
-+
-+      std::string tempPath = "/" + scheme + "/" + host + path;
-+      const char* newPath = tempPath.c_str();
-+      const char newHost[] = "localhost";
-+      const char newPort[] = "8080";
-+      GURL new_url = url;
-+
-+      GURL::Replacements replacements;
-+      replacements.SetSchemeStr(url::kHttpScheme);
-+      replacements.SetHostStr(newHost);
-+      replacements.SetPortStr(newPort);
-+      replacements.SetPathStr(newPath);
-+      new_url = new_url.ReplaceComponents(replacements);
-+
-+      url_chain.push_back(new_url);
++      url_chain.push_back(url.GetAsIPFSGateway());
 +      request->SetURLChainUnsafe(url_chain);
 +    }
 +
      return URLRequestHttpJob::Create(request);
    }
  
-@@ -60,6 +93,14 @@ URLRequestJobFactory::URLRequestJobFactory() {
+@@ -60,6 +75,14 @@ URLRequestJobFactory::URLRequestJobFactory() {
                                             /*is_for_websockets=*/false));
    SetProtocolHandler(url::kHttpsScheme, std::make_unique<HttpProtocolHandler>(
                                              /*is_for_websockets=*/false));
@@ -236,10 +252,76 @@ index cb1543a669..7a2a50134d 100644
        cors_enabled_schemes.insert(scheme.c_str());
      for (auto& scheme : url::GetCSPBypassingSchemes()) {
 diff --git a/url/gurl.cc b/url/gurl.cc
-index d7ede359d1..8b4239522e 100644
+index d7ede359d1..33f553cda4 100644
 --- a/url/gurl.cc
 +++ b/url/gurl.cc
-@@ -362,6 +362,10 @@ bool GURL::SchemeIsWSOrWSS() const {
+@@ -305,6 +305,65 @@ GURL GURL::GetAsReferrer() const {
+   return ReplaceComponents(replacements);
+ }
+ 
++// Helper functions to convert to and from IPFS Gateway URLs
++GURL GURL::GetAsIPFSGateway() const {
++  // Only works for IPFS URLs
++  if (!SchemeIsIPFSP2P()) {
++    return GURL();
++  }
++
++  std::string tempPath = "/" + scheme() + "/" + host() + path();
++  const char* newPath = tempPath.c_str();
++  const char newHost[] = "localhost";
++  const char newPort[] = "8080";
++
++  GURL::Replacements replacements;
++  replacements.SetSchemeStr(url::kHttpScheme);
++  replacements.SetHostStr(newHost);
++  replacements.SetPortStr(newPort);
++  replacements.SetPathStr(newPath);
++
++  return ReplaceComponents(replacements);
++}
++
++GURL GURL::GetAsIPFSFromGatway() const {
++  if (!IsIPFSGateway()) {
++    return GURL();
++  }
++
++  std::string full_path(path());
++  // Path should look like this: /scheme/hostname/subpath/whatever
++  // Find the first three slashes
++  int firstSlash = 0;
++  int secondSlash = full_path.find("/", firstSlash + 1);
++  int thirdSlash = full_path.find("/", secondSlash + 1);
++
++  // Find the scheme between the first two slashes
++  std::string scheme(full_path.substr(firstSlash + 1, secondSlash - firstSlash));
++  // Find the host between the second and third slashes
++  std::string host(full_path.substr(secondSlash + 1, thirdSlash - secondSlash - 1));
++  // Find the final path starting at the third slash
++  std::string path(full_path.substr(thirdSlash));
++
++  GURL::Replacements replacements;
++
++	replacements.SetSchemeStr(scheme.c_str());
++	replacements.SetHostStr(host.c_str());
++	replacements.ClearPort();
++	replacements.SetPathStr(path.c_str());
++
++  return ReplaceComponents(replacements);
++}
++
++bool GURL::IsIPFSGateway() const {
++  if (!SchemeIs(url::kHttpScheme)) return false;
++  if (host() != "localhost") return false;
++  if (port() != "8080") return false;
++
++  return true;
++}
++
++
+ GURL GURL::GetWithEmptyPath() const {
+   // This doesn't make sense for invalid or nonstandard URLs, so return
+   // the empty URL.
+@@ -362,6 +421,10 @@ bool GURL::SchemeIsWSOrWSS() const {
    return SchemeIs(url::kWsScheme) || SchemeIs(url::kWssScheme);
  }
  
@@ -250,22 +332,37 @@ index d7ede359d1..8b4239522e 100644
  bool GURL::SchemeIsCryptographic() const {
    if (!has_scheme())
      return false;
-@@ -373,6 +377,10 @@ bool GURL::SchemeIsCryptographic(base::StringPiece lower_ascii_scheme) {
+@@ -373,6 +436,10 @@ bool GURL::SchemeIsCryptographic(base::StringPiece lower_ascii_scheme) {
    DCHECK(base::ToLowerASCII(lower_ascii_scheme) == lower_ascii_scheme);
  
    return lower_ascii_scheme == url::kHttpsScheme ||
-+         lower_ascii_scheme == url:kIpfsScheme ||
-+         lower_ascii_scheme == url:kIpnsScheme ||
-+         lower_ascii_scheme == url:kIpldScheme ||
-+         lower_ascii_scheme == url:kPubsubScheme ||
++         lower_ascii_scheme == url::kIpfsScheme ||
++         lower_ascii_scheme == url::kIpnsScheme ||
++         lower_ascii_scheme == url::kIpldScheme ||
++         lower_ascii_scheme == url::kPubsubScheme ||
           lower_ascii_scheme == url::kWssScheme;
  }
  
 diff --git a/url/gurl.h b/url/gurl.h
-index 8ad47d64a1..5358d22f37 100644
+index 8ad47d64a1..0ea861705c 100644
 --- a/url/gurl.h
 +++ b/url/gurl.h
-@@ -238,6 +238,9 @@ class COMPONENT_EXPORT(URL) GURL {
+@@ -212,6 +212,14 @@ class COMPONENT_EXPORT(URL) GURL {
+   // returned.
+   GURL GetAsReferrer() const;
+ 
++  // Helper functions to convert to and from IPFS Gateway URLs
++  GURL GetAsIPFSGateway() const;
++  GURL GetAsIPFSFromGatway() const;
++
++  // Returns true if the URL for the current URL is is for the IPFS gateway
++  // Served on `http://localhost:8080/`
++  bool IsIPFSGateway() const;
++
+   // Returns true if the scheme for the current URL is a known "standard-format"
+   // scheme. A standard-format scheme adheres to what RFC 3986 calls "generic
+   // URI syntax" (https://tools.ietf.org/html/rfc3986#section-3). This includes
+@@ -238,6 +246,9 @@ class COMPONENT_EXPORT(URL) GURL {
    // Returns true is the scheme is "ws" or "wss".
    bool SchemeIsWSOrWSS() const;
  
