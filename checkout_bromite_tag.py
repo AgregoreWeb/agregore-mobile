@@ -37,6 +37,11 @@ bromite = args["bromite"]
 
 version = args["version"]
 
+print("Fetching latest changes")
+
+to_exec = "git fetch --all"
+subprocess.run(to_exec, cwd=bromite, shell=True, check=True, env=env)
+
 print(f"Checking out bromite version {version}")
 
 to_exec = f"git checkout {version}"
