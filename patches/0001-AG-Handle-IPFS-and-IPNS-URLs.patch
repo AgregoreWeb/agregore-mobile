@@ -1,4 +1,4 @@
-From 722160ede90f64a9939c478e712949f68b35dfa0 Mon Sep 17 00:00:00 2001
+From 0205095280e1ece88c93ff9508d017d9ed9909cc Mon Sep 17 00:00:00 2001
 From: Madrets <emmanuel.elite.46@gmail.com>
 Date: Thu, 21 Apr 2022 10:44:57 -0400
 Subject: [PATCH] AG Handle IPFS and IPNS URLs
@@ -9,7 +9,7 @@ Subject: [PATCH] AG Handle IPFS and IPNS URLs
  content/common/url_schemes.cc                 | 21 ++++++
  net/url_request/url_request.cc                |  5 ++
  net/url_request/url_request.h                 |  1 +
- net/url_request/url_request_job.cc            |  7 ++
+ net/url_request/url_request_job.cc            |  5 ++
  net/url_request/url_request_job_factory.cc    | 23 +++++++
  services/network/public/cpp/url_util.cc       |  2 +-
  .../platform/weborigin/scheme_registry.cc     |  8 ++-
@@ -18,7 +18,7 @@ Subject: [PATCH] AG Handle IPFS and IPNS URLs
  url/url_constants.cc                          |  4 ++
  url/url_constants.h                           |  4 ++
  url/url_util.cc                               | 14 ++++
- 14 files changed, 171 insertions(+), 4 deletions(-)
+ 14 files changed, 169 insertions(+), 4 deletions(-)
 
 diff --git a/chrome/android/java/AndroidManifest.xml b/chrome/android/java/AndroidManifest.xml
 index 1278803e28..71eb475b0c 100644
@@ -139,18 +139,16 @@ index b4bf5651be..61de4b1d44 100644
    // The URL that should be consulted for the third-party cookie blocking
    // policy, as defined in Section 2.1.1 and 2.1.2 of
 diff --git a/net/url_request/url_request_job.cc b/net/url_request/url_request_job.cc
-index 29d39eae46..04d89b5c85 100644
+index 29d39eae46..4039e25fea 100644
 --- a/net/url_request/url_request_job.cc
 +++ b/net/url_request/url_request_job.cc
-@@ -321,6 +321,13 @@ GURL URLRequestJob::ComputeReferrerForPolicy(
+@@ -321,6 +321,11 @@ GURL URLRequestJob::ComputeReferrerForPolicy(
  
    bool same_origin = url::IsSameOriginWith(original_referrer, destination);
  
-+  // Un-gateway the destination if the referrer is IPFS related due to our redirects
-+  if (original_referrer.SchemeIsIPFSP2P()) {
-+    if(destination.IsIPFSGateway()) {
-+      same_origin = url::IsSameOriginWith(original_referrer, destination.GetAsIPFSFromGatway());
-+    }
++  // IPFS origins can just get each others referrer
++  if (original_referrer.SchemeIsIPFSP2P() && destination.IsIPFSGateway()) {
++    return MaybeStripToOrigin(std::move(stripped_referrer), should_strip_to_origin);
 +  }
 +
    if (same_origin_out_for_metrics)
@@ -237,7 +235,7 @@ index cb1543a669..7a2a50134d 100644
        cors_enabled_schemes.insert(scheme.c_str());
      for (auto& scheme : url::GetCSPBypassingSchemes()) {
 diff --git a/url/gurl.cc b/url/gurl.cc
-index d7ede359d1..6b517b9fdb 100644
+index d7ede359d1..33f553cda4 100644
 --- a/url/gurl.cc
 +++ b/url/gurl.cc
 @@ -305,6 +305,65 @@ GURL GURL::GetAsReferrer() const {
@@ -245,7 +243,7 @@ index d7ede359d1..6b517b9fdb 100644
  }
  
 +// Helper functions to convert to and from IPFS Gateway URLs
-+GURL GetAsIPFSGateway() const {
++GURL GURL::GetAsIPFSGateway() const {
 +  // Only works for IPFS URLs
 +  if (!SchemeIsIPFSP2P()) {
 +    return GURL();
@@ -265,7 +263,7 @@ index d7ede359d1..6b517b9fdb 100644
 +  return ReplaceComponents(replacements);
 +}
 +
-+GURL GetAsIPFSFromGatway() const {
++GURL GURL::GetAsIPFSFromGatway() const {
 +  if (!IsIPFSGateway()) {
 +    return GURL();
 +  }
@@ -287,15 +285,15 @@ index d7ede359d1..6b517b9fdb 100644
 +  GURL::Replacements replacements;
 +
 +	replacements.SetSchemeStr(scheme.c_str());
-+	replacements.SetHostStr(host.c_str())
++	replacements.SetHostStr(host.c_str());
 +	replacements.ClearPort();
 +	replacements.SetPathStr(path.c_str());
 +
 +  return ReplaceComponents(replacements);
 +}
 +
-+bool IsIPFSGateway() const {
-+  if (!SchemeIs(url:kHttpScheme)) return false;
++bool GURL::IsIPFSGateway() const {
++  if (!SchemeIs(url::kHttpScheme)) return false;
 +  if (host() != "localhost") return false;
 +  if (port() != "8080") return false;
 +
