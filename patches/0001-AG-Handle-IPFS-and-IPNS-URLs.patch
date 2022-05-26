@@ -1,4 +1,4 @@
-From 0205095280e1ece88c93ff9508d017d9ed9909cc Mon Sep 17 00:00:00 2001
+From e5362a0ed40400744cefe1a334317cbe816b5cfd Mon Sep 17 00:00:00 2001
 From: Madrets <emmanuel.elite.46@gmail.com>
 Date: Thu, 21 Apr 2022 10:44:57 -0400
 Subject: [PATCH] AG Handle IPFS and IPNS URLs
@@ -6,6 +6,7 @@ Subject: [PATCH] AG Handle IPFS and IPNS URLs
 ---
  chrome/android/java/AndroidManifest.xml       |  4 ++
  chrome/browser/profiles/profile_io_data.cc    |  4 ++
+ .../renderer_host/render_process_host_impl.cc |  5 ++
  content/common/url_schemes.cc                 | 21 ++++++
  net/url_request/url_request.cc                |  5 ++
  net/url_request/url_request.h                 |  1 +
@@ -18,7 +19,7 @@ Subject: [PATCH] AG Handle IPFS and IPNS URLs
  url/url_constants.cc                          |  4 ++
  url/url_constants.h                           |  4 ++
  url/url_util.cc                               | 14 ++++
- 14 files changed, 169 insertions(+), 4 deletions(-)
+ 15 files changed, 174 insertions(+), 4 deletions(-)
 
 diff --git a/chrome/android/java/AndroidManifest.xml b/chrome/android/java/AndroidManifest.xml
 index 1278803e28..71eb475b0c 100644
@@ -50,6 +51,22 @@ index 242c2e3f1f..fcf2813f3b 100644
  #if BUILDFLAG(ENABLE_WEBSOCKETS)
      url::kWsScheme,
      url::kWssScheme,
+diff --git a/content/browser/renderer_host/render_process_host_impl.cc b/content/browser/renderer_host/render_process_host_impl.cc
+index 1df0f19458..0050999f93 100644
+--- a/content/browser/renderer_host/render_process_host_impl.cc
++++ b/content/browser/renderer_host/render_process_host_impl.cc
+@@ -4182,6 +4182,11 @@ void RenderProcessHostImpl::FilterURL(RenderProcessHost* rph,
+   if (empty_allowed && url->is_empty())
+     return;
+ 
++  // Allow anything to link to IPFS URLs
++  if (url->SchemeIsIPFSP2P()) {
++    return;
++  }
++
+   if (!url->is_valid()) {
+     // Have to use about:blank for the denied case, instead of an empty GURL.
+     // This is because the browser treats navigation to an empty GURL as a
 diff --git a/content/common/url_schemes.cc b/content/common/url_schemes.cc
 index e59440185a..d4dd43afb9 100644
 --- a/content/common/url_schemes.cc
