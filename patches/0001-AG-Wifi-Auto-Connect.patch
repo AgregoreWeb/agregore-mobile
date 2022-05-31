@@ -1,4 +1,4 @@
-From 6a1c5a1158c9b74b9c5841220da0ce5d6f1f8042 Mon Sep 17 00:00:00 2001
+From 5be45af4711c1286410f6b36f873374cdee1599d Mon Sep 17 00:00:00 2001
 From: mauve <ranger@mauve.moe>
 Date: Sat, 23 Apr 2022 01:34:51 -0400
 Subject: [PATCH] AG Wifi Auto Connect
@@ -23,8 +23,7 @@ Subject: [PATCH] AG Wifi Auto Connect
  third_party/wifi_autoconnect/README.chromium  |   3 +
  .../wifi_autoconnect/WifiAutoConnect.info     |  14 ++
  third_party/wifi_autoconnect/cipd.yaml        |   4 +
- url/gurl.cc                                   |   8 +-
- 20 files changed, 348 insertions(+), 7 deletions(-)
+ 19 files changed, 344 insertions(+), 3 deletions(-)
  create mode 100644 chrome/android/java/res/drawable/wifi_auto_connect.xml
  create mode 100644 third_party/wifi_autoconnect/BUILD.gn
  create mode 100644 third_party/wifi_autoconnect/LICENSE
@@ -34,17 +33,17 @@ Subject: [PATCH] AG Wifi Auto Connect
  create mode 100644 third_party/wifi_autoconnect/cipd.yaml
 
 diff --git a/.gitignore b/.gitignore
-index 52f5a6157a..de6fe1c969 100644
+index e480e6905d..94b074b031 100644
 --- a/.gitignore
 +++ b/.gitignore
-@@ -340,3 +340,5 @@ vs-chromium-project.txt
+@@ -342,3 +342,5 @@ vs-chromium-project.txt
  
  # Ignore agregore gateway binary since it's downloaded outside of git
  third_party/agregore-ipfs-daemon/agregore-ipfs-daemon.aar
 +# Ignore wifi_autoconnect binary since it's downloaded outside of git
 +third_party/wifi_autoconnect/WifiAutoConnect.aar
 diff --git a/build/config/android/config.gni b/build/config/android/config.gni
-index 5fa6099883..469b8080a4 100644
+index 473214562b..6272149b0b 100644
 --- a/build/config/android/config.gni
 +++ b/build/config/android/config.gni
 @@ -49,7 +49,7 @@ if (is_android || is_chromeos) {
@@ -57,10 +56,10 @@ index 5fa6099883..469b8080a4 100644
      # Static analysis can be either "on" or "off" or "build_server". This
      # controls how android lint, error-prone, bytecode checks are run. This
 diff --git a/chrome/android/BUILD.gn b/chrome/android/BUILD.gn
-index a75c19ef61..4a071c9127 100644
+index 3c05d3ce39..33aec1137f 100644
 --- a/chrome/android/BUILD.gn
 +++ b/chrome/android/BUILD.gn
-@@ -631,8 +631,9 @@ android_library("chrome_java") {
+@@ -635,8 +635,9 @@ android_library("chrome_java") {
      "//third_party/blink/public/mojom:mojom_platform_java",
      "//third_party/gif_player:gif_player_java",
      "//third_party/metrics_proto:metrics_proto_java",
@@ -72,7 +71,7 @@ index a75c19ef61..4a071c9127 100644
      "//ui/base/mojom:mojom_java",
      "//ui/gfx/geometry/mojom:mojom_java",
 diff --git a/chrome/android/chrome_java_resources.gni b/chrome/android/chrome_java_resources.gni
-index d79b1e31eb..b19308135c 100644
+index c516a9d6de..8daade82fe 100644
 --- a/chrome/android/chrome_java_resources.gni
 +++ b/chrome/android/chrome_java_resources.gni
 @@ -477,6 +477,7 @@ chrome_java_resources = [
@@ -84,7 +83,7 @@ index d79b1e31eb..b19308135c 100644
    "java/res/layout-sw360dp/preference_spinner_single_line.xml",
    "java/res/layout-sw600dp/find_toolbar.xml",
 diff --git a/chrome/android/chrome_public_apk_tmpl.gni b/chrome/android/chrome_public_apk_tmpl.gni
-index 011248d364..511d85db1a 100644
+index c5c092c536..ca770d1e07 100644
 --- a/chrome/android/chrome_public_apk_tmpl.gni
 +++ b/chrome/android/chrome_public_apk_tmpl.gni
 @@ -190,7 +190,10 @@ template("chrome_public_common_apk_or_module_tmpl") {
@@ -100,7 +99,7 @@ index 011248d364..511d85db1a 100644
        loadable_modules = []
      }
 diff --git a/chrome/android/java/AndroidManifest.xml b/chrome/android/java/AndroidManifest.xml
-index 71eb475b0c..7ae4deb01b 100644
+index 0f92b7964a..983b9947c7 100644
 --- a/chrome/android/java/AndroidManifest.xml
 +++ b/chrome/android/java/AndroidManifest.xml
 @@ -29,6 +29,12 @@ by a child template that "extends" this file.
@@ -136,7 +135,7 @@ index 0000000000..39f33575c2
 +        android:strokeWidth="1"/>
 +</vector>
 diff --git a/chrome/android/java/res/menu/main_menu.xml b/chrome/android/java/res/menu/main_menu.xml
-index 2e820d1d31..1b4c0c99ae 100644
+index 9383d5a80d..b5e5bd01c9 100644
 --- a/chrome/android/java/res/menu/main_menu.xml
 +++ b/chrome/android/java/res/menu/main_menu.xml
 @@ -35,6 +35,9 @@
@@ -190,7 +189,7 @@ index 1e13a955e4..a9bf3ca01e 100644
  		loadService(binder, false);
  	}
 diff --git a/chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java b/chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java
-index 699bd11bf1..150ddb1631 100644
+index 71e4ce4163..7661c4bd4a 100644
 --- a/chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java
 +++ b/chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java
 @@ -217,6 +217,8 @@ import java.util.HashSet;
@@ -202,7 +201,7 @@ index 699bd11bf1..150ddb1631 100644
  import org.chromium.chrome.browser.ApplicationLifetime;
  
  /**
-@@ -2023,6 +2025,24 @@ public class ChromeTabbedActivity extends ChromeActivity<ChromeActivityComponent
+@@ -2039,6 +2041,24 @@ public class ChromeTabbedActivity extends ChromeActivity<ChromeActivityComponent
          getTabModelSelector().getModel(true).closeAllTabs();
      }
  
@@ -227,21 +226,21 @@ index 699bd11bf1..150ddb1631 100644
      @Override
      public boolean onMenuOrKeyboardAction(final int id, boolean fromMenu) {
          final Tab currentTab = getActivityTab();
-@@ -2104,6 +2124,12 @@ public class ChromeTabbedActivity extends ChromeActivity<ChromeActivityComponent
-             RecordUserAction.record("MobileTabClosed");
-         } else if (id == R.id.exit_id) {
-             ApplicationLifetime.terminate(false);
+@@ -2115,6 +2135,12 @@ public class ChromeTabbedActivity extends ChromeActivity<ChromeActivityComponent
+             }
+             RecordUserAction.record("MobileMenuRecentTabs");
+             ReturnToChromeExperimentsUtil.onRecentTabsOpened();
 +        } else if (id == R.id.wifi_auto_connect_id) {
 +           if (isWifiConnected()) {
 +               disconnectWifi();
 +           } else {
 +               autoConnectWifi();
 +           }
-         } else if (id == R.id.close_all_tabs_menu_id) {
-             if (ChromeFeatureList.isEnabled(ChromeFeatureList.CLOSE_ALL_TABS_MODAL_DIALOG)) {
-                 CloseAllTabsDialog.show(this, getModalDialogManagerSupplier(),
+         } else if (id == R.id.close_tab) {
+             getCurrentTabModel().closeTab(currentTab, true, false, true);
+             RecordUserAction.record("MobileTabClosed");
 diff --git a/chrome/android/java/src/org/chromium/chrome/browser/app/ChromeActivity.java b/chrome/android/java/src/org/chromium/chrome/browser/app/ChromeActivity.java
-index aa0f279dff..39d61d6f93 100644
+index c1977347ac..d19a8da8ca 100644
 --- a/chrome/android/java/src/org/chromium/chrome/browser/app/ChromeActivity.java
 +++ b/chrome/android/java/src/org/chromium/chrome/browser/app/ChromeActivity.java
 @@ -257,6 +257,7 @@ import java.util.List;
@@ -279,7 +278,7 @@ index aa0f279dff..39d61d6f93 100644
      @Override
      protected void onPreCreate() {
          CachedFeatureFlags.onStartOrResumeCheckpoint();
-@@ -1157,6 +1172,10 @@ public abstract class ChromeActivity<C extends ChromeActivityComponent>
+@@ -1158,6 +1173,10 @@ public abstract class ChromeActivity<C extends ChromeActivityComponent>
          }
          VrModuleProvider.getDelegate().maybeRegisterVrEntryHook(this);
  
@@ -290,7 +289,7 @@ index aa0f279dff..39d61d6f93 100644
          getManualFillingComponent().onResume();
      }
  
-@@ -1218,6 +1237,10 @@ public abstract class ChromeActivity<C extends ChromeActivityComponent>
+@@ -1219,6 +1238,10 @@ public abstract class ChromeActivity<C extends ChromeActivityComponent>
          if (tab != null) getTabContentManager().cacheTabThumbnail(tab);
          getManualFillingComponent().onPause();
  
@@ -301,7 +300,7 @@ index aa0f279dff..39d61d6f93 100644
          VrModuleProvider.getDelegate().maybeUnregisterVrEntryHook();
          markSessionEnd();
  
-@@ -1317,6 +1340,18 @@ public abstract class ChromeActivity<C extends ChromeActivityComponent>
+@@ -1318,6 +1341,18 @@ public abstract class ChromeActivity<C extends ChromeActivityComponent>
  
              // Load IPFS service and autostart the gateway
              ipfs.loadService(this, true);
@@ -320,7 +319,7 @@ index aa0f279dff..39d61d6f93 100644
  
              FontSizePrefs.getInstance(Profile.getLastUsedRegularProfile())
                      .recordUserFontPrefOnStartup();
-@@ -1578,6 +1613,10 @@ public abstract class ChromeActivity<C extends ChromeActivityComponent>
+@@ -1579,6 +1614,10 @@ public abstract class ChromeActivity<C extends ChromeActivityComponent>
          if (ipfs.isBound()) {
              ipfs.unloadService();
          }
@@ -332,10 +331,10 @@ index aa0f279dff..39d61d6f93 100644
          super.onDestroy();
      }
 diff --git a/chrome/browser/ui/android/strings/android_chrome_strings.grd b/chrome/browser/ui/android/strings/android_chrome_strings.grd
-index e2a5bc0966..a256015dd4 100644
+index 0736cf79d5..a5e5d03785 100644
 --- a/chrome/browser/ui/android/strings/android_chrome_strings.grd
 +++ b/chrome/browser/ui/android/strings/android_chrome_strings.grd
-@@ -3461,6 +3461,9 @@ To change this setting, <ph name="BEGIN_LINK">&lt;resetlink&gt;</ph>reset sync<p
+@@ -3479,6 +3479,9 @@ To change this setting, <ph name="BEGIN_LINK">&lt;resetlink&gt;</ph>reset sync<p
        <message name="IDS_MENU_BOOKMARK_ALL_TABS" desc="Menu item to bookmark all tabs. [CHAR-LIMIT=27]">
          Bookmark all tabs
        </message>
@@ -614,25 +613,6 @@ index 0000000000..d209c96027
 +description: Wifi AutoConnect Android
 +data:
 +  - file: "WifiAutoConnect.aar"
-diff --git a/url/gurl.cc b/url/gurl.cc
-index 8b4239522e..5943b8ad10 100644
---- a/url/gurl.cc
-+++ b/url/gurl.cc
-@@ -377,10 +377,10 @@ bool GURL::SchemeIsCryptographic(base::StringPiece lower_ascii_scheme) {
-   DCHECK(base::ToLowerASCII(lower_ascii_scheme) == lower_ascii_scheme);
- 
-   return lower_ascii_scheme == url::kHttpsScheme ||
--         lower_ascii_scheme == url:kIpfsScheme ||
--         lower_ascii_scheme == url:kIpnsScheme ||
--         lower_ascii_scheme == url:kIpldScheme ||
--         lower_ascii_scheme == url:kPubsubScheme ||
-+         lower_ascii_scheme == url::kIpfsScheme ||
-+         lower_ascii_scheme == url::kIpnsScheme ||
-+         lower_ascii_scheme == url::kIpldScheme ||
-+         lower_ascii_scheme == url::kPubsubScheme ||
-          lower_ascii_scheme == url::kWssScheme;
- }
- 
 -- 
 2.34.1
 
