@@ -1,4 +1,5 @@
 0001-AG-Rebrand-to-Agregore.patch
+0001-AG-Improve-plain-text-rendering-on-mobile.patch
 0001-AG-IPFS-Daemon.patch
 0001-AG-Handle-IPFS-and-IPNS-URLs.patch
 0001-AG-Wifi-Auto-Connect.patch

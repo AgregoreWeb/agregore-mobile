@@ -1,4 +1,4 @@
-From e73c032e90e865d33f65639f065731217b33013d Mon Sep 17 00:00:00 2001
+From 6ec0363693b5da929c3f0e412523f9e0ec14d100 Mon Sep 17 00:00:00 2001
 From: mauve <ranger@mauve.moe>
 Date: Thu, 24 Mar 2022 18:30:30 -0400
 Subject: [PATCH] AG IPFS Daemon
@@ -33,10 +33,10 @@ Subject: [PATCH] AG IPFS Daemon
  create mode 100644 third_party/agregore-ipfs-daemon/cipd.yaml
 
 diff --git a/.gitignore b/.gitignore
-index 356131646e..52f5a6157a 100644
+index cecf1cb529..e480e6905d 100644
 --- a/.gitignore
 +++ b/.gitignore
-@@ -337,3 +337,6 @@ vs-chromium-project.txt
+@@ -339,3 +339,6 @@ vs-chromium-project.txt
  
  # Ignore the default results output directory for tools/run-swarmed.py
  /results
@@ -44,10 +44,10 @@ index 356131646e..52f5a6157a 100644
 +# Ignore agregore gateway binary since it's downloaded outside of git
 +third_party/agregore-ipfs-daemon/agregore-ipfs-daemon.aar
 diff --git a/chrome/android/BUILD.gn b/chrome/android/BUILD.gn
-index f31dfaaaf4..a75c19ef61 100644
+index d13c9cd3d6..3c05d3ce39 100644
 --- a/chrome/android/BUILD.gn
 +++ b/chrome/android/BUILD.gn
-@@ -631,6 +631,8 @@ android_library("chrome_java") {
+@@ -635,6 +635,8 @@ android_library("chrome_java") {
      "//third_party/blink/public/mojom:mojom_platform_java",
      "//third_party/gif_player:gif_player_java",
      "//third_party/metrics_proto:metrics_proto_java",
@@ -57,18 +57,20 @@ index f31dfaaaf4..a75c19ef61 100644
      "//ui/base/mojom:mojom_java",
      "//ui/gfx/geometry/mojom:mojom_java",
 diff --git a/chrome/android/chrome_java_sources.gni b/chrome/android/chrome_java_sources.gni
-index fd8b67271b..144ce79daa 100644
+index 1f74a3b58f..f1792fefec 100644
 --- a/chrome/android/chrome_java_sources.gni
 +++ b/chrome/android/chrome_java_sources.gni
-@@ -1137,4 +1137,6 @@ chrome_java_sources = [
-   "java/src/org/chromium/chrome/browser/webapps/launchpad/LaunchpadUtils.java",
-   "java/src/org/chromium/chrome/browser/webauth/authenticator/CableAuthenticatorActivity.java",
-   "java/src/org/chromium/chrome/browser/webshare/ShareServiceImplementationFactory.java",
+@@ -1131,6 +1131,8 @@ chrome_java_sources = [
+   "java/src/org/chromium/chrome/browser/webapps/WebappLauncherActivity.java",
+   "java/src/org/chromium/chrome/browser/webapps/WebappLocator.java",
+   "java/src/org/chromium/chrome/browser/webapps/WebappRegistry.java",
 +  "java/src/moe/mauve/agregore/mobile/IPFSService.java",
 +  "java/src/moe/mauve/agregore/mobile/IPFSStarter.java",
- ]
+   "java/src/org/chromium/chrome/browser/webapps/launchpad/LaunchpadActivity.java",
+   "java/src/org/chromium/chrome/browser/webapps/launchpad/LaunchpadUtils.java",
+   "java/src/org/chromium/chrome/browser/webauth/authenticator/CableAuthenticatorActivity.java",
 diff --git a/chrome/android/chrome_public_apk_tmpl.gni b/chrome/android/chrome_public_apk_tmpl.gni
-index 50d6d66e09..011248d364 100644
+index 53b51fbfda..c5c092c536 100644
 --- a/chrome/android/chrome_public_apk_tmpl.gni
 +++ b/chrome/android/chrome_public_apk_tmpl.gni
 @@ -189,6 +189,16 @@ template("chrome_public_common_apk_or_module_tmpl") {
@@ -89,7 +91,7 @@ index 50d6d66e09..011248d364 100644
        product_config_java_packages = [ "org.chromium.chrome.browser" ]
      }
 diff --git a/chrome/android/java/AndroidManifest.xml b/chrome/android/java/AndroidManifest.xml
-index c5e9e64823..1278803e28 100644
+index f7279452b8..eaf3c318f4 100644
 --- a/chrome/android/java/AndroidManifest.xml
 +++ b/chrome/android/java/AndroidManifest.xml
 @@ -27,6 +27,9 @@ by a child template that "extends" this file.
@@ -102,7 +104,7 @@ index c5e9e64823..1278803e28 100644
      <!--
        Enable runtime permissions as uses-permission in tip of tree builds
        only for ease of development on Android L and earlier. For consumer
-@@ -894,6 +897,14 @@ by a child template that "extends" this file.
+@@ -927,6 +930,14 @@ by a child template that "extends" this file.
              android:exported="false">
          </service>
  
@@ -142,7 +144,7 @@ index 45e0ea84a3..2d2ea32b4b 100644
  </resources>
 diff --git a/chrome/android/java/src/moe/mauve/agregore/mobile/IPFSService.java b/chrome/android/java/src/moe/mauve/agregore/mobile/IPFSService.java
 new file mode 100644
-index 0000000000..a3efe3a500
+index 0000000000..86835b2e3f
 --- /dev/null
 +++ b/chrome/android/java/src/moe/mauve/agregore/mobile/IPFSService.java
 @@ -0,0 +1,153 @@
@@ -400,7 +402,7 @@ index 0000000000..1e13a955e4
 +}
 +
 diff --git a/chrome/android/java/src/org/chromium/chrome/browser/app/ChromeActivity.java b/chrome/android/java/src/org/chromium/chrome/browser/app/ChromeActivity.java
-index 98043ddb5c..aa0f279dff 100644
+index 0d44fb3ae9..c1977347ac 100644
 --- a/chrome/android/java/src/org/chromium/chrome/browser/app/ChromeActivity.java
 +++ b/chrome/android/java/src/org/chromium/chrome/browser/app/ChromeActivity.java
 @@ -256,6 +256,8 @@ import java.util.ArrayList;
@@ -422,7 +424,7 @@ index 98043ddb5c..aa0f279dff 100644
      protected ChromeActivity() {
          mIntentHandler = new IntentHandler(this, createIntentHandlerDelegate());
          mManualFillingComponentSupplier.set(ManualFillingComponentFactory.createComponent());
-@@ -1310,6 +1315,9 @@ public abstract class ChromeActivity<C extends ChromeActivityComponent>
+@@ -1311,6 +1316,9 @@ public abstract class ChromeActivity<C extends ChromeActivityComponent>
              RecordHistogram.recordSparseHistogram(
                      "Android.PlayServices.Version", playServicesVersion);
  
@@ -432,7 +434,7 @@ index 98043ddb5c..aa0f279dff 100644
              FontSizePrefs.getInstance(Profile.getLastUsedRegularProfile())
                      .recordUserFontPrefOnStartup();
          });
-@@ -1566,6 +1574,11 @@ public abstract class ChromeActivity<C extends ChromeActivityComponent>
+@@ -1567,6 +1575,11 @@ public abstract class ChromeActivity<C extends ChromeActivityComponent>
  
          mComponent = null;
  
