@@ -1,4 +1,4 @@
-From 5be45af4711c1286410f6b36f873374cdee1599d Mon Sep 17 00:00:00 2001
+From 674ecb63fc87cc4d97f00dff311c3bfc449f87a3 Mon Sep 17 00:00:00 2001
 From: mauve <ranger@mauve.moe>
 Date: Sat, 23 Apr 2022 01:34:51 -0400
 Subject: [PATCH] AG Wifi Auto Connect
@@ -9,7 +9,7 @@ Subject: [PATCH] AG Wifi Auto Connect
  chrome/android/BUILD.gn                       |   3 +-
  chrome/android/chrome_java_resources.gni      |   1 +
  chrome/android/chrome_public_apk_tmpl.gni     |   5 +-
- chrome/android/java/AndroidManifest.xml       |   6 +
+ chrome/android/java/AndroidManifest.xml       |   7 +
  .../java/res/drawable/wifi_auto_connect.xml   |  13 ++
  chrome/android/java/res/menu/main_menu.xml    |   3 +
  .../mauve/agregore/mobile/IPFSService.java    |   7 +
@@ -23,7 +23,7 @@ Subject: [PATCH] AG Wifi Auto Connect
  third_party/wifi_autoconnect/README.chromium  |   3 +
  .../wifi_autoconnect/WifiAutoConnect.info     |  14 ++
  third_party/wifi_autoconnect/cipd.yaml        |   4 +
- 19 files changed, 344 insertions(+), 3 deletions(-)
+ 19 files changed, 345 insertions(+), 3 deletions(-)
  create mode 100644 chrome/android/java/res/drawable/wifi_auto_connect.xml
  create mode 100644 third_party/wifi_autoconnect/BUILD.gn
  create mode 100644 third_party/wifi_autoconnect/LICENSE
@@ -99,10 +99,10 @@ index c5c092c536..ca770d1e07 100644
        loadable_modules = []
      }
 diff --git a/chrome/android/java/AndroidManifest.xml b/chrome/android/java/AndroidManifest.xml
-index 0f92b7964a..983b9947c7 100644
+index 0f92b7964a..36bd047c88 100644
 --- a/chrome/android/java/AndroidManifest.xml
 +++ b/chrome/android/java/AndroidManifest.xml
-@@ -29,6 +29,12 @@ by a child template that "extends" this file.
+@@ -29,6 +29,13 @@ by a child template that "extends" this file.
  
      <!-- Required for local peer discovery -->
      <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
@@ -112,6 +112,7 @@ index 0f92b7964a..983b9947c7 100644
 +
 +    <!-- Required to set up wifi auto connect hotspots -->
 +    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
++    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
  
      <!--
        Enable runtime permissions as uses-permission in tip of tree builds
@@ -331,7 +332,7 @@ index c1977347ac..d19a8da8ca 100644
          super.onDestroy();
      }
 diff --git a/chrome/browser/ui/android/strings/android_chrome_strings.grd b/chrome/browser/ui/android/strings/android_chrome_strings.grd
-index 0736cf79d5..a5e5d03785 100644
+index bface7fc0c..baf923a5d8 100644
 --- a/chrome/browser/ui/android/strings/android_chrome_strings.grd
 +++ b/chrome/browser/ui/android/strings/android_chrome_strings.grd
 @@ -3479,6 +3479,9 @@ To change this setting, <ph name="BEGIN_LINK">&lt;resetlink&gt;</ph>reset sync<p
